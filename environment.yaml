@@ -5,14 +5,13 @@ channels:
 dependencies:
   - python=3.9
   - numpy
-  - torch
+  - pytorch
   - scipy
   - matplotlib
   - scikit-learn
   - h5py
   - tqdm
   - scikit-image
-  - medpy
   - pip
   - pip:
     - medpy
