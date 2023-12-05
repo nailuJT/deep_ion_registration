@@ -26,6 +26,8 @@ from scipy.ndimage import rotate
 
 PATIENTS = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
 BASE_PATH = r'/project/med2/Ines.Butz/Data/ML/PrimalDual'
+REFERENCE_PATH = os.path.join(BASE_PATH, 'ReferenceCTs/20231011_analytical_')
+
 
 #refCT
 #not necessary, can re-use from analytical data 
@@ -35,17 +37,15 @@ BASE_PATH = r'/project/med2/Ines.Butz/Data/ML/PrimalDual'
 
 
 
-def read_refeference_ct(patient, base_path):
-    reference_path = 'ReferenceCTs/20231011_analytical_'
-    CT = np.load(os.path.join(base_path, reference_path, patient+'_1mm3mm1mm.npy'))
+def read_ct(patient, path, mask=False):
+    if mask:
+        appendix = '_1mm3mm1mm_mask.npy'
+    else:
+        appendix = '_1mm3mm1mm.npy'
+    CT = np.load(os.path.join(path, patient+appendix))
     return CT
 
-def read_refeference_mask(patient, base_path):
-    reference_path = 'ReferenceCTs/20231011_analytical_'
-    mask = np.load(os.path.join(base_path, reference_path, patient+'_1mm3mm1mm_mask.npy'))
-    return mask
-
-CT = read_refeference_ct('female1', BASE_PATH)
+CT = read_ct('male1', REFERENCE_PATH)
 print(CT.shape)
 # generate_slices()
 
