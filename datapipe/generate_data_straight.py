@@ -43,7 +43,7 @@ def read_refCTmask(patient):
 CT = read_refCT('female1')
 print(CT.shape)
 # generate_slices()
-def generate_sysm(nAngles):
+def generate_sysm(nAngles, save=False):
     
       
     train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
@@ -118,20 +118,22 @@ def generate_sysm(nAngles):
                 HU_original= np.array([-1400, -1000, -800, -600, -400, -200, 0, 200, 400, 600, 800, 1400])
                 
                 ctArray = CTblock.flatten('F')
-                ictArray = interp1d(HU_original, RSP_accurate, kind='linear')(ctArray)
+                ictArray = interp1d(HU_original, RSP_accurate, kind='linear')(ctArray) #calibrate array
                 iCT = np.reshape(ictArray, np.shape(CTblock), order='F')
                 iCTacc = iCT*mask_image
                 print(CTblock.shape)
                 for i, a in enumerate(Angles):
                     sys_m = sys_angles[i]
-                    sys_m = sys_m.multiply(mask_flat[:, np.newaxis]).tocoo()
+                    sys_m = sys_m.multiply(mask_flat[:, np.newaxis]).tocoo() #QUEST why multiply with mask?
                     values = sys_m.data
                     indices = np.vstack((sys_m.row, sys_m.col))
                     i = torch.LongTensor(indices)
                     v = torch.FloatTensor(values)
                     shapeT = sys_m.shape
                     sys_coo_tensor = torch.sparse.FloatTensor(i, v, torch.Size(shapeT))
-                    torch.save(sys_coo_tensor, path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'.pt')
+
+                    if save:
+                        torch.save(sys_coo_tensor, path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'.pt')
                     
                     summe = sys_m.sum(0)
                     ind0 = np.where(summe==0)[1]
@@ -144,11 +146,15 @@ def generate_sysm(nAngles):
                     v = torch.FloatTensor(values)
                     shapeT = sys_norm.shape
                     sys_coo_tensor = torch.sparse.FloatTensor(i, v, torch.Size(shapeT))
-                    torch.save(sys_coo_tensor.T, path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'_norm.pt')
+
+                    if save:
+                        torch.save(sys_coo_tensor.T, path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'_norm.pt')
                       
                     proj_angle = sys_norm.transpose().dot(iCTacc.flatten(order='F')).reshape(CTblock.shape[0],n_ions) #reshaped into matrix: pixels x ions (entry tracker projection image)
                     print(proj_angle.shape)
-                    np.save(path+'/proj_slice'+str(s)+'_angle'+str(int(a))+'.npy', proj_angle)
+
+                    if save:
+                        np.save(path+'/proj_slice'+str(s)+'_angle'+str(int(a))+'.npy', proj_angle)
                         
                   
 generate_sysm(90)

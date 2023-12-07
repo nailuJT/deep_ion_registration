@@ -68,6 +68,40 @@ for patient in patients:
         pat_slices = [train_slices, val_slices]
 
 
+def generate_system_matrix(shape):
+    """
+
+    :param shape:
+    :return:
+    """
+
+    system_matrices_angles = {}
+
+    for i, theta in enumerate(Angles):
+
+        system_matrix = np.zeros(shape=(np.prod(shape), shape[0]))
+
+        for row_index in range(shape[0]):
+
+            image_zeros = np.zeros(shape)
+            image_zeros[row_index, :] = 1
+            image_rotated = rotate(image_zeros, theta, reshape=False, order=1)
+
+            image_row = image_rotated.reshape(np.prod(shape), order='F')
+            system_matrix[:, row_index] = image_row
+
+        system_matrix = scipy.sparse.csc_matrix(system_matrix)
+        system_matrices_angles[theta] = system_matrix
+
+    return system_matrices_angles
+
+def project_image(angles, system_matrices_angles):
+    for angle, system_matrix in zip(angles, system_matrices_angles)
+
+def apply_mask
+
+def callibrate_image()
+
 def generate_sysm(angles, safe_path, ct, mask, patient, error='mixed', magn_deviation=0.05, base_path=BASE_PATH):
 
         nSliceBlock = 1
@@ -83,20 +117,7 @@ def generate_sysm(angles, safe_path, ct, mask, patient, error='mixed', magn_devi
         
         sys_angles = []
         shape = [CT.shape[0], CT.shape[2]]
-        for i, theta in enumerate(Angles):
-            system_matrix = []
-            for p in np.arange(shape[0]):
-                
-                image_zeros = np.zeros(shape)
-                image_zeros[p,:] = 1
-                image_rotaded = rotate(image_zeros, theta, reshape = False, order = 1)
 
-                image_column = im.reshape(np.prod(shape), order = 'F')
-                system_matrix  += [image_column]
-
-            system_matrix = np.array(system_matrix).T
-            system_matrix = scipy.sparse.csc_matrix(system_matrix)
-            sys_angles += [system_matrix]
         
         for slices in pat_slices:
             #print(sorted(pat_slices[0]), sorted(pat_slices[1]))
