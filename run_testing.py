@@ -8,15 +8,10 @@ Created on Wed Mar  1 15:21:57 2023
 import numpy as np 
 import torch
 import pickle
-import os
-from DatasetLPD import datalist, DatasetPrimalDual
-from LPD import primal_dual_straight
-from LPD_OpCorr import primal_dual_straight_modelcorrected
-from custom_losses import mask_loss2D
-import tqdm
+from datapipe.DatasetLPD import datalist, DatasetPrimalDual
+from networks.LPD import primal_dual_straight
+from networks.custom_losses import mask_loss2D
 import matplotlib.pyplot as plt
-import random
-import matplotlib as mpl
 import math
 
 # User selected parameters

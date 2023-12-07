@@ -7,11 +7,10 @@ Created on Wed Mar  1 15:17:39 2023
 """
 import numpy as np
 import torch
-from DatasetLPD_LRZ import DatasetPrimalDual, datalist
-from LPD_LRZ import primal_dual_ion
+from datapipe.DatasetLPD_LRZ import DatasetPrimalDual, datalist
+from networks.LPD_LRZ import primal_dual_ion
 #from LPD_OpCorr import primal_dual_ion_modelcorrected
-from custom_losses import mask_loss2D
-import argparse
+from networks.custom_losses import mask_loss2D
 import os
 
 # parser = argparse.ArgumentParser()
