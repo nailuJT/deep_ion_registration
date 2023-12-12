@@ -2,6 +2,10 @@ import numpy as np
 import os
 from scipy.ndimage import map_coordinates
 import warnings
+from collections import namedtuple
+
+GaussianParameters = namedtuple('GaussianParameters', ['alpha_dirs', 'mu_dirs', 'sigma_dirs', 'rotation_dirs'])
+
 def gaussian(x, mu, sigma, alpha, epsilon=1e-8):
     """
     Computes a Gaussian function.
@@ -14,38 +18,10 @@ def gaussian(x, mu, sigma, alpha, epsilon=1e-8):
 
     return y
 
-def sample_gaussian_parameters(center_mu,
-                               center_sigma,
-                               epsilon_mu,
-                               epsilon_sigma,
-                               epsilon_max,
-                               epsilon_min,
-                               sigma_mu,
-                               sigma_sigma,
-                               sigma_max,
-                               sigma_min,
-                               lensing_chance=0.5,
-                               dim=2):
 
-    epsilon = np.random.normal(epsilon_mu, epsilon_sigma, dim)
-    epsilon = np.clip(epsilon, epsilon_min, epsilon_max)
 
-    sigma = np.random.normal(sigma_mu, sigma_sigma, dim)
-    sigma = np.clip(sigma, sigma_min, sigma_max)
 
-    mu = np.random.normal(center_mu, center_sigma, dim)
-
-    lensing = np.random.choice([True, False], dim, p=[lensing_chance, 1 - lensing_chance])
-
-    parameters = {
-        "epsilon": epsilon,
-        "mu": mu,
-        "sigma": sigma
-    }
-
-    return parameters
-
-def gaussian_shift(coordinates, image_center, alpha, mu, sigma, dimension, lensing=False):
+def gaussian_shift(coordinates, image_center, alpha, mu, sigma, dimension, rotation=None, lensing=False):
     """
     Applies a Gaussian transform to an image.
     """
@@ -58,12 +34,20 @@ def gaussian_shift(coordinates, image_center, alpha, mu, sigma, dimension, lensi
 
     return shift
 
-def gaussian_derivative(coordinates, image_center, alpha, mu, sigma, dimension):
+def gaussian_derivative(coordinates, image_center, alpha, mu, sigma, dimension, rotation=0):
+    """
+    Computes the derivative of a Gaussian function in dimension 'dimension'.
+    """
 
     mu_normalized = mu + image_center
+
+    if rotation != 0:
+        coordinates = transform_coordinates(coordinates, rotation, mu_normalized)
+
+
     shift = gaussian(coordinates, mu_normalized, sigma, alpha)
     shift = shift * (coordinates[dimension] - mu_normalized[dimension]) / sigma[dimension] ** 2
-    rota
+
     return shift
 
 def test_gaussian_shift():
@@ -73,7 +57,42 @@ def test_gaussian_shift():
     """
     coordinates = np. meshgrid(np.arange(10), np.arange(10))
 
-def apply_gaussian_transform(image, alpha_dirs, mu_dirs, sigma_dirs, **kwargs):
+def apply_gaussian_lensing(image, alpha_dirs, mu_dirs, sigma_dirs, rotation_dirs, **kwargs):
+    """
+    Applies a Gaussian transform to an image.
+    """
+
+    if not all([image.ndim == mu_dirs[i].shape[0] for i in range(len(alpha_dirs))]):
+        raise ValueError("Image and all directions must have the same first dimension size.")
+
+    image_center = np.array([np.floor(image.shape[i] / 2) for i in range(len(image.shape))])
+    shape = image.shape
+
+    coordinates = np.stack(np.indices(shape))
+    vector_field = []
+
+    for dimension, (alpha, mu, sigma, rotation)in enumerate(zip(alpha_dirs, mu_dirs, sigma_dirs, rotation_dirs)):
+
+        vector_field += [gaussian_shift(coordinates=coordinates,
+                                        image_center=image_center,
+                                        alpha=alpha,
+                                        mu=mu,
+                                        sigma=sigma,
+                                        dimension=dimension,
+                                        rotation=rotation,
+                                        **kwargs)]
+
+    vector_field = np.stack(vector_field, axis=0)
+    coordinates_transformed = vector_field + coordinates
+
+    # Apply the Gaussian vector field to the image
+    transformed_image = map_coordinates(image, coordinates_transformed, order=1)
+
+    return transformed_image, vector_field
+
+
+
+def apply_gaussian_transform(image, alpha_dirs, mu_dirs, sigma_dirs, rotation_dirs, **kwargs):
     """
     Applies a Gaussian transform to an image.
     """
@@ -95,6 +114,7 @@ def apply_gaussian_transform(image, alpha_dirs, mu_dirs, sigma_dirs, **kwargs):
                                         mu=mu,
                                         sigma=sigma,
                                         dimension=dimension,
+                                        rotation=rotation,
                                         **kwargs)]
 
     vector_field = np.stack(vector_field, axis=0)
@@ -131,19 +151,44 @@ def load_test_image():
 
     return image_original
 
-def test_apply_gaussian_transform():
+def transform_coordinates(coordinates, rotation_angle, mu_normalized):
+    """
+    rotate coordinates around mu by angle rotation_angle
+    """
+    rotation_angle_rad = np.radians(rotation_angle)
+
+    rotation_matrix = np.array([[np.cos(rotation_angle_rad), -np.sin(rotation_angle_rad)],
+                                [np.sin(rotation_angle_rad), np.cos(rotation_angle_rad)]])
+
+    coordinates_shifted = coordinates - mu_normalized[:,None,None]
+    coordinates_rotated = np.einsum("ij, jlm -> ilm", rotation_matrix, coordinates_shifted)
+    coordinates_transformed = coordinates_rotated + mu_normalized[:,None,None]
+
+    return coordinates_transformed
+
+
+def load_dummy_image():
+    image_original = np.ones((20, 20))
+    return image_original
+
+#make gaussian parameters a named tuple
+
+
+def test_apply_gaussian_transform(gaussian_parameters=None):
     """
     Tests the apply_gaussian_transform function with plots.
     """
     from phantom_helpers.binary_tools import compare_images
 
-    gaussian_parameters = {
-        "alpha_dirs": [1, 0.5],
-        "mu_dirs": np.array([[0, 0],
-                             [0, 0]]),
-        "sigma_dirs": [np.array([4, 4]),
-                       np.array([6, 6])]
-    }
+    if gaussian_parameters is None:
+        gaussian_parameters = {
+            "alpha_dirs": [0.5, 0.5],
+            "mu_dirs": np.array([[3, 3],
+                                 [3, 3]]),
+            "sigma_dirs": [np.array([5, 5]),
+                           np.array([5, 5])],
+            "rotation_dirs": [0, 0],
+        }
 
     image_original = load_test_image()
 
@@ -151,23 +196,39 @@ def test_apply_gaussian_transform():
 
     visualize_vector_field(vector_field)
 
+    compare_images(image_original, image_warped)
+
+def compare_gaussian_transforms():
+    from phantom_helpers.binary_tools import compare_images
+
+    gaussian_parameters = {
+        "alpha_dirs": [1, 0],
+        "mu_dirs": np.array([[0, 0],
+                             [0, 0]]),
+        "sigma_dirs": [np.array([4, 4]),
+                       np.array([4, 4])],
+        "rotation_dirs": [0, 0],
+    }
+
+    image_original = load_dummy_image()
+
+    image_warped, vector_field = apply_gaussian_transform(image_original, **gaussian_parameters)
+
+    image_lensing, vector_lensing = apply_gaussian_lensing(image_original, **gaussian_parameters, lensing=True)
+
+    image_shifted, vector_shifted = apply_gaussian_lensing(image_original, **gaussian_parameters, lensing=False)
+
+    visualize_vector_field(vector_field)
+
+    visualize_vector_field(vector_lensing)
+    visualize_vector_field(vector_shifted)
+
     #compare_images(image_original, image_warped)
 
 def test_sample_gaussian_transform():
     from phantom_helpers.binary_tools import compare_images
 
     sample_parameters = {
-        "center_mu": 0,
-        "center_sigma": 50,
-        "epsilon_mu": 5,
-        "epsilon_sigma": 5,
-        "epsilon_max": 10,
-        "epsilon_min": 3,
-        "sigma_mu": 10,
-        "sigma_sigma": 5,
-        "sigma_max": 10,
-        "sigma_min": 0,
-        "dim": 2
     }
 
     gaussian_parameters = sample_gaussian_parameters(**sample_parameters)
@@ -180,5 +241,16 @@ def test_sample_gaussian_transform():
 
 
 if __name__ == '__main__':
-    test_apply_gaussian_transform()
+    gaussian_parameters = {
+        "alpha_dirs": [50, 50],
+        "mu_dirs": np.array([[0, 0],
+                             [0, 0]]),
+        "sigma_dirs": [np.array([100, 50]),
+                       np.array([50, 100])],
+        "rotation_dirs": [0, 0],
+    }
+    test_apply_gaussian_transform(gaussian_parameters=gaussian_parameters)
+    #compare_gaussian_transforms()
     #test_sample_gaussian_transform()
+
+    #TODO make visualiuzation with grey underlay original
