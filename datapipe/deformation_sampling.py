@@ -21,7 +21,7 @@ class GaussianParameterSampler:
         self.sigma_std = sigma_std
         self.rotation_mean = rotation_mean
         self.rotation_std = rotation_std
-        self.dimension = None
+        self.dimension = dimension
 
     def sample(self):
         alpha_directions = np.random.normal(self.alpha_mean, self.alpha_std, self.dimension)
