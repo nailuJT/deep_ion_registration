@@ -1,83 +1,186 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Tue May  9 11:08:18 2023
+This module contains the PatientCT class which is used to handle patient CT data.
 
-@author: jenskammerer
+The data should be structured in the following way:
+
+/project
+└── med2
+    └── Ines.Butz
+        └── Data
+            └── ML
+                ├── DeepBackProj
+                │   ├── 20231006_{patient_name}_1mm3mm1mm_test_slices.npy
+                │   └── calibs
+                │       └── pretraining_{patient_name}_calibs_acc_5mixed
+                │           └── RSP_accurate_slice0.npy
+                └── PrimalDual
+                    └── ReferenceCTs
+                        └── 20231011_analytical_{patient_name}_1mm3mm1mm.npy
+                        └── 20231011_analytical_{patient_name}_1mm3mm1mm_mask.npy
+
+Where {patient_name} should be replaced with the name of the patient.
+
+The PatientCT class provides methods to load and process the CT data, including generating system matrices and projections.
 """
 
-import h5py
 import scipy
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-import matplotlib.pyplot as plt
-import math
-from sklearn.model_selection import train_test_split
 import os
-import pickle
-from tqdm.auto import tqdm
 from scipy.interpolate import interp1d
 import torch
-from skimage.transform import downscale_local_mean
-from medpy.io import load, header, save
 from scipy.ndimage import rotate
-#ReferenceCT
-#images have to be of maximum size of 268 --> take DeepBackProj refCTs and crop, make sure nothing inside inscribed circle 
 
 PATIENTS = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
-BASE_PATH = r'/project/med2/Ines.Butz/Data/ML/PrimalDual'
-REFERENCE_PATH = os.path.join(BASE_PATH, 'ReferenceCTs/20231011_analytical_')
 
+HU_ORIGINAL = np.array([-1400, -1000, -800, -600, -400, -200, 0, 200, 400, 600, 800, 1400])
 
-#refCT
-#not necessary, can re-use from analytical data 
-
-#slices
-# same as for DeepBackProj and U-Net
-
-
-
-def read_ct(patient, path, mask=False):
-    if mask:
-        appendix = '_1mm3mm1mm_mask.npy'
-    else:
-        appendix = '_1mm3mm1mm.npy'
-    CT = np.load(os.path.join(path, patient+appendix))
-    return CT
-
-CT = read_ct('male1', REFERENCE_PATH)
-print(CT.shape)
-# generate_slices()
-
-train_patients = ['male1', 'female1', 'male2', 'female2', 'male3', 'female3', 'male4', 'female4', 'male5']
-test_patients = ['female5']
-patients = ['male1', 'female1', 'male2', 'female2', 'male3', 'female3', 'male4', 'female4', 'male5', 'female5']
-angles = np.linspace(0,180, 90, endpoint = False)
-
-for patient in patients:
-    print(patient)
-    if patient in test_patients:
-        test_slices = np.load(
-            r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_' + patient + '_1mm3mm1mm_test_slices.npy')
-        pat_slices = [test_slices]
-    else:
-        train_slices = np.load(
-            r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_' + patient + '_1mm3mm1mm_train_slices.npy')
-        val_slices = np.load(
-            r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_' + patient + '_1mm3mm1mm_val_slices.npy')
-        pat_slices = [train_slices, val_slices]
-
-
-def generate_system_matrix(shape):
+class PatientCT:
+    """
+    Class to handle patient CT data.
     """
 
-    :param shape:
-    :return:
+    BASE_PATH = '/project/med2/Ines.Butz/Data/ML'
+    DEEP_BACK_PROJ_PATH = os.path.join(BASE_PATH, 'DeepBackProj')
+    PRIMAL_DUAL_PATH = os.path.join(BASE_PATH, 'PrimalDual')
+    REFERENCE_CTS_PATH = os.path.join(PRIMAL_DUAL_PATH, 'ReferenceCTs')
+    RSP_ACCURATE_PATH = os.path.join(DEEP_BACK_PROJ_PATH, 'calibs')
+
+    MAGNETIC_DEVIATIONS = {
+        0.05: '5',
+        0.2: '20'
+    }
+
+    def __init__(self, patient_name, n_slice_block=1, mode='train', magnetic_deviation=0.05, error='mixed'):
+
+        self.mode = mode
+        self.error = error
+        self.magnetic_deviation = magnetic_deviation
+        self.n_slice_block = n_slice_block
+
+        self.patient_name = patient_name
+        self.ct = self._load_ct().transpose(1, 0, 2)
+        self.mask = self._load_mask().transpose(1, 0, 2)
+        self.slices = self._load_slices(mode=self.mode)
+        self.rsp_accurate = self._load_rsp_accurate(deviation=self.magnetic_deviation,
+                                                    error=self.error,)
+
+    def _load_ct(self):
+        ct_filename = f'20231011_analytical_{self.patient_name}_1mm3mm1mm.npy'
+        ct_path = os.path.join(self.REFERENCE_CTS_PATH, ct_filename)
+        return np.load(ct_path)
+
+    def _load_mask(self):
+        mask_filename = f'20231011_analytical_{self.patient_name}_1mm3mm1mm_mask.npy'
+        mask_path = os.path.join(self.REFERENCE_CTS_PATH, mask_filename)
+        return np.load(mask_path)
+
+    def _load_slices(self, mode="train", offset=1):
+        slice_filename = f'20231006_{self.patient_name}_1mm3mm1mm_{mode}_slices.npy'
+        slices_path = os.path.join(self.DEEP_BACK_PROJ_PATH, slice_filename)
+        return np.load(slices_path) - offset
+
+    def _load_rsp_accurate(self, deviation=0.05, error='mixed'):
+        magn_deviation = self.MAGNETIC_DEVIATIONS[deviation]
+        rsp_accurate_files = []
+
+        for slice in range(self.n_slices):
+            rsp_relative_path = f"pretraining_{self.patient_name}_calibs_acc_{magn_deviation}{error}/" \
+                                f"RSP_accurate_slice{slice+1}.npy"
+            rsp_accurate_path = os.path.join(self.RSP_ACCURATE_PATH, rsp_relative_path)
+            rsp_accurate_files.append(np.load(rsp_accurate_path))
+
+        return np.array(rsp_accurate_files)
+
+    def ct_blocks(self, block_size):
+        num_blocks = self.ct.shape[1] // block_size
+        for i in range(num_blocks):
+            start = i * block_size
+            end = start + block_size
+            yield self.ct[start:end, :, :]
+
+    def mask_blocks(self, block_size):
+        num_blocks = self.mask.shape[1] // block_size
+        for i in range(num_blocks):
+            start = i * block_size
+            end = start + block_size
+            yield self.mask[start:end, :, :]
+
+    def ion_ct_blocks(self, block_size):
+        ion_ct = self.ion_ct
+        num_blocks = ion_ct.shape[1] // block_size
+        for i in range(num_blocks):
+            start = i * block_size
+            end = start + block_size
+            yield ion_ct[ start:end, :, :]
+
+    @property
+    def shape(self):
+        return self.ct.shape
+
+    @property
+    def n_slices(self):
+        return self.ct.shape[0]
+
+    @property
+    def ion_ct(self, hu_original=HU_ORIGINAL):
+
+        ion_ct = np.empty_like(self.ct)
+        for i in range(self.n_slices):
+            renormalization = interp1d(hu_original, self.rsp_accurate[i, :], kind='linear')
+            ion_ct[i] = renormalization(self.ct[i])
+
+        return ion_ct
+
+def generate_projections(patient, system_matrices_angles, save_path, n_ions=1,
+                       normalize=True, save=True, slice_block=1):
+    """
+    Generates the projections for a given patient and a given set of system matrices.
+    """
+
+    for slice, (ion_ct_block, mask_image) in enumerate(zip(patient.ion_ct_blocks(block_size=slice_block),
+                                                           patient.mask_blocks(block_size=slice_block))):
+
+        ion_ct_masked = ion_ct_block * mask_image
+
+        for angle, system_matrix in system_matrices_angles.items():
+
+            if normalize:
+                normalization_sum = system_matrix.sum(0)
+                indexes_zeros = np.where(normalization_sum == 0)[1]
+                normalization_sum[0, indexes_zeros] = 1
+                system_matrix = system_matrix.multiply(1. / normalization_sum)
+
+            system_matrix = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis]).tocoo()
+            indices = np.vstack((system_matrix.row, system_matrix.col))
+
+            indices_tensor = torch.LongTensor(indices)
+            system_matrix_tensor = torch.FloatTensor(system_matrix.data)
+
+            sys_coo_tensor = torch.sparse.FloatTensor(indices_tensor, system_matrix_tensor,
+                                                      torch.Size(system_matrix.shape))
+
+            # reshaped into matrix: pixels x ions (entry tracker projection image)
+            projection_angle = system_matrix.transpose().dot(ion_ct_masked.flatten(order='F'))
+            projection_angle = projection_angle.reshape(ion_ct_block.shape[0], n_ions)
+
+            if save:
+                torch.save(sys_coo_tensor,
+                           save_path + '/sysm_slice' + str(slice) + '_angle' + str(int(angle)) + '.pt')
+                np.save(save_path + '/proj_slice' + str(slice) + '_angle' + str(int(angle)) + '.npy', projection_angle)
+
+
+def generate_system_matrix(shape, angles):
+    """
+    Generates a system matrix for a given shape and a given set of angles.
+
+    :param shape: Shape of the image.
+    :param angles: Angles for which the system matrix should be generated.
+    :return: Dictionary of system matrices for each angle.
     """
 
     system_matrices_angles = {}
 
-    for i, theta in enumerate(Angles):
+    for i, theta in enumerate(angles):
 
         system_matrix = np.zeros(shape=(np.prod(shape), shape[0]))
 
@@ -95,112 +198,40 @@ def generate_system_matrix(shape):
 
     return system_matrices_angles
 
-def project_image(angles, system_matrices_angles):
-    for angle, system_matrix in zip(angles, system_matrices_angles)
+def test_ion_ct():
+    """
+    Tests the ion_ct property of the PatientCT class.
+    """
+    patient = PatientCT('male1')
+    print(patient.ion_ct.shape)
 
-def apply_mask
-
-def callibrate_image()
-
-def generate_sysm(angles, safe_path, ct, mask, patient, error='mixed', magn_deviation=0.05, base_path=BASE_PATH):
-
-        nSliceBlock = 1
-        n_ions = 1
-        #path = r'/project/med2/Ines.Butz/Data/ML/PrimalDual/system_matrices/straight/'+patient+'_1mm1mm3mm/'#system matrices not changed, can use same path
-        path = r'//home/j/J.Titze/Projects/Data'+patient+'_1mm1mm3mm/'#system matrices not changed, can use same path
-        if not os.path.isdir(path):
-            os.makedirs(path)
-            
-        CT = read_refeference_ct(patient)
-        mask = read_refCTmask(patient)
-        print(mask.shape)
-        
-        sys_angles = []
-        shape = [CT.shape[0], CT.shape[2]]
-
-        
-        for slices in pat_slices:
-            #print(sorted(pat_slices[0]), sorted(pat_slices[1]))
-            for s in tqdm(slices):
-                CTblock = CT[:,s-math.floor(nSliceBlock/2)-1:s+math.floor(nSliceBlock/2),:]
-                CTblock = CTblock.transpose(0,2,1)
-                mask_image = mask[:,s-math.floor(nSliceBlock/2)-1:s+math.floor(nSliceBlock/2),:]
-                mask_image = mask_image.transpose(0,2,1)
-                print(mask_image.shape)
-                mask_flat = mask_image.flatten(order = 'F')
-                
-            
-                RSP_accurate = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/calibs/pretraining_'+patient+'_calibs_acc_'+str(int(100*MagnDeviation))+Error+r'/RSP_accurate_slice'+str(s)+'.npy')
-                HU_original= np.array([-1400, -1000, -800, -600, -400, -200, 0, 200, 400, 600, 800, 1400])
-                
-                ctArray = CTblock.flatten('F')
-                ictArray = interp1d(HU_original, RSP_accurate, kind='linear')(ctArray)
-                iCT = np.reshape(ictArray, np.shape(CTblock), order='F')
-                iCTacc = iCT*mask_image
-                print(CTblock.shape)
-                for i, a in enumerate(Angles):
-                    sys_m = sys_angles[i]
-                    sys_m = sys_m.multiply(mask_flat[:, np.newaxis]).tocoo()
-                    values = sys_m.data
-                    indices = np.vstack((sys_m.row, sys_m.col))
-                    i = torch.LongTensor(indices)
-                    v = torch.FloatTensor(values)
-                    shapeT = sys_m.shape
-                    sys_coo_tensor = torch.sparse.FloatTensor(i, v, torch.Size(shapeT))
-                    torch.save(sys_coo_tensor, path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'.pt')
-                    
-                    summe = sys_m.sum(0)
-                    ind0 = np.where(summe==0)[1]
-                    summe[0, ind0] = 1
-                    sys_norm =sys_m.multiply(1./summe)
-                    
-                    values = sys_norm.data
-                    indices = np.vstack((sys_norm.row, sys_norm.col))
-                    i = torch.LongTensor(indices)
-                    v = torch.FloatTensor(values)
-                    shapeT = sys_norm.shape
-                    sys_coo_tensor = torch.sparse.FloatTensor(i, v, torch.Size(shapeT))
-                    torch.save(sys_coo_tensor.T, path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'_norm.pt')
-                      
-                    proj_angle = sys_norm.transpose().dot(iCTacc.flatten(order='F')).reshape(CTblock.shape[0],n_ions) #reshaped into matrix: pixels x ions (entry tracker projection image)
-                    print(proj_angle.shape)
-                    np.save(path+'/proj_slice'+str(s)+'_angle'+str(int(a))+'.npy', proj_angle)
-                        
-                  
-generate_sysm(90)
-
-#calibs stay the same
-
-    
-def compute_operator_norn(patient, s, a):
-    path = r'/project/med2/Ines.Butz/Data/ML/PrimalDual/system_matrices/straight/'+patient+'_1mm1mm3mm/'#system matrices not changed, can use same path
-    
-    sys_coo_tensor  = torch.load(path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'.pt')
-    sys_coo_tensor_norm  = torch.load(path+'/sysm_slice'+str(s)+'_angle'+str(int(a))+'_norm.pt')
-    return torch.norm(sys_coo_tensor), torch.norm(sys_coo_tensor_norm)
+def test_generate_system_matrix():
+    """
+    Tests the generate_system_matrix function.
+    """
+    patient = PatientCT('male1')
+    angles = np.linspace(0, 180, 10, endpoint=False)
+    system_matrices_angles = generate_system_matrix(patient.shape, angles)
+    print(system_matrices_angles[0].shape)
 
 
-train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
-test_patients = ['female5']
-patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
-nAngles = 90
-Angles = np.linspace(0,180, nAngles, endpoint = False)
-forward_norms = []
-backward_norms = []
 
-for patient in patients:
-    print(patient)
-    if patient in test_patients: 
-        test_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_test_slices.npy')
-        pat_slices = [test_slices]
-    else:
-        train_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_train_slices.npy')
-        val_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_val_slices.npy')
-        pat_slices = [train_slices, val_slices]
-    for slices in pat_slices:
-        for s in tqdm(slices):
-            for i, a in enumerate(Angles):
-                norm1, norm2 = compute_operator_norn(patient, s, a)
-                forward_norms += [norm2.numpy()]
-                backward_norms += [norm1.numpy()]
-np.save(r'/project/med2/Ines.Butz/Data/ML/PrimalDual/nAngles'+str(nAngles)+'_opNorms.npy',[np.mean(forward_norms), np.mean(backward_norms)])
+def test_generate_projections():
+    """
+    Tests the generate_projections function.
+    """
+    save_path = '/home/j/J.Titze/Data/system_matrices'
+
+    patient = PatientCT('male1')
+    angles = np.linspace(0, 180, 10, endpoint=False)
+    system_matrices_angles = generate_system_matrix(patient.shape, angles)
+    generate_projections(patient, system_matrices_angles,
+                         save_path=save_path,
+                         n_ions=1,
+                         normalize=True,
+                         save=True,
+                         slice_block=1)
+
+
+if __name__ == '__main__':
+    test_generate_system_matrix()
