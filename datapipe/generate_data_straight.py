@@ -24,7 +24,7 @@ from scipy.ndimage import rotate
 #ReferenceCT
 #images have to be of maximum size of 268 --> take DeepBackProj refCTs and crop, make sure nothing inside inscribed circle 
 
-patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
+patients = ['male1', 'female1', 'male2', 'female2', 'male3', 'female3', 'male4', 'female4', 'male5', 'female5']
 
 #refCT
 #not necessary, can re-use from analytical data 
@@ -44,7 +44,6 @@ CT = read_refCT('female1')
 print(CT.shape)
 # generate_slices()
 def generate_sysm(nAngles, save=False):
-    
       
     train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
     test_patients = ['female5']
@@ -55,6 +54,8 @@ def generate_sysm(nAngles, save=False):
     print(Angles)
     for patient in patients:
         print(patient)
+        #QUEST these slices are not ordererd, is this wanted?
+        #QUEST what is the purpose of using picked slices?
         if patient in test_patients: 
             test_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_test_slices.npy')
             pat_slices = [test_slices]
@@ -74,6 +75,8 @@ def generate_sysm(nAngles, save=False):
         # n_ions = 100
         
         nSliceBlock = 1
+        #QUEST if this is higher than one we get an error at rehape in line 154
+        #QUEST what is the intended behaviour of more than one ion
         n_ions = 1
         #path = r'/project/med2/Ines.Butz/Data/ML/PrimalDual/system_matrices/straight/'+patient+'_1mm1mm3mm/'#system matrices not changed, can use same path
         path = r'//home/j/J.Titze/Projects/Data'+patient+'_1mm1mm3mm/'#system matrices not changed, can use same path
@@ -106,6 +109,8 @@ def generate_sysm(nAngles, save=False):
         for slices in pat_slices:
             #print(sorted(pat_slices[0]), sorted(pat_slices[1]))
             for s in tqdm(slices):
+                #QUEST is this blocking of the ct ever used?
+                #QUEST if you do it like this you have overlapping blocks ist this wanted?
                 CTblock = CT[:,s-math.floor(nSliceBlock/2)-1:s+math.floor(nSliceBlock/2),:]
                 CTblock = CTblock.transpose(0,2,1)
                 mask_image = mask[:,s-math.floor(nSliceBlock/2)-1:s+math.floor(nSliceBlock/2),:]
