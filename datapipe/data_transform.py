@@ -84,9 +84,6 @@ def transform_coordinates(coordinates, rotation_angle, mu_normalized):
     return coordinates_transformed
 
 
-
-
-
 if __name__ == '__main__':
     gaussian_parameters = {
         "alpha_dirs": [50, 50],

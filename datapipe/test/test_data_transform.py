@@ -3,7 +3,8 @@ import os
 from scipy.ndimage import map_coordinates
 import warnings
 from collections import namedtuple
-from
+from datapipe.data_transform import apply_gaussian_transform
+
 def visualize_vector_field(vector_field):
     import matplotlib.pyplot as plt
 
@@ -101,3 +102,8 @@ def test_sample_gaussian_transform():
     image_original = load_test_image()
     image_warped = apply_gaussian_transform(image_original, **gaussian_parameters)
     compare_images(image_original, image_warped)
+
+if __name__ == '__main__':
+    test_apply_gaussian_transform()
+    #compare_gaussian_transforms()
+    #test_sample_gaussian_transform()
