@@ -238,24 +238,24 @@ def generate_projections(patient, system_matrices_angles, save_path=None, normal
         for slice, (ion_ct_block, mask_image) in enumerated_cts:
 
             ion_ct_masked = ion_ct_block * mask_image
+            system_matrix_masked = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis])
 
             if normalize:
-                normalization_sum = system_matrix.sum(0)
+                normalization_sum = system_matrix_masked.sum(0)
                 indexes_zeros = np.where(normalization_sum == 0)[1]
                 normalization_sum[0, indexes_zeros] = 1
-                system_matrix = system_matrix.multiply(1. / normalization_sum)
+                system_matrix_masked = system_matrix_masked.multiply(1. / normalization_sum)
 
-            #system_matrix = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis]).tocoo()
-            system_matrix = system_matrix.tocoo()
-            indices = np.vstack((system_matrix.row, system_matrix.col))
+            system_matrix_masked = system_matrix_masked.tocoo()
+            indices = np.vstack((system_matrix_masked.row, system_matrix_masked.col))
 
             indices_tensor = torch.LongTensor(indices)
-            system_matrix_tensor = torch.FloatTensor(system_matrix.data)
+            system_matrix_masked_tensor = torch.FloatTensor(system_matrix_masked.data)
 
-            sys_coo_tensor = torch.sparse.FloatTensor(indices_tensor, system_matrix_tensor,
-                                                      torch.Size(system_matrix.shape))
+            sys_coo_tensor = torch.sparse.FloatTensor(indices_tensor, system_matrix_masked_tensor,
+                                                      torch.Size(system_matrix_masked.shape))
 
-            projection_angle_slice = system_matrix.transpose().dot(ion_ct_masked.flatten(order='F'))
+            projection_angle_slice = system_matrix_masked.transpose().dot(ion_ct_masked.flatten(order='F'))
 
             if save_path is not None:
                 torch.save(sys_coo_tensor,
