@@ -43,7 +43,7 @@ def read_refCTmask(patient):
 CT = read_refCT('female1')
 print(CT.shape)
 # generate_slices()
-def generate_sysm(nAngles, force_patients=None, save=False, return_sys_angles=False, return_proj_angle=False, stop_reorder=False):
+def generate_sysm(nAngles, force_patients=None, save=False, return_sys_angles=False, return_proj_angle=False, return_sys_masked_norm=False, stop_reorder=False):
       
     train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
     test_patients = ['female5']
