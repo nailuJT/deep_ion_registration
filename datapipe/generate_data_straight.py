@@ -9,7 +9,7 @@ Created on Tue May  9 11:08:18 2023
 import h5py
 import scipy
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
+#from scipy.interpolate import RegularGridInterpolator
 import matplotlib.pyplot as plt
 import math
 from sklearn.model_selection import train_test_split
@@ -43,7 +43,7 @@ def read_refCTmask(patient):
 CT = read_refCT('female1')
 print(CT.shape)
 # generate_slices()
-def generate_sysm(nAngles, save=False):
+def generate_sysm(nAngles, force_patients=None, save=False, return_sys_angles=False, return_proj_angle=False, stop_reorder=False):
       
     train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
     test_patients = ['female5']
@@ -52,6 +52,11 @@ def generate_sysm(nAngles, save=False):
     Error = 'mixed'
     Angles = np.linspace(0,180, nAngles, endpoint = False)
     print(Angles)
+    if force_patients is not None:
+        patients = force_patients
+
+    proj_angles = []
+
     for patient in patients:
         print(patient)
         #QUEST these slices are not ordererd, is this wanted?
@@ -105,7 +110,16 @@ def generate_sysm(nAngles, save=False):
             system_matrix = np.array(system_matrix).T
             system_matrix = scipy.sparse.csc_matrix(system_matrix)
             sys_angles += [system_matrix]
-        
+
+
+        if return_sys_angles:
+            return sys_angles
+
+        if stop_reorder:
+            pat_slices = [range(1, CT.shape[1]+1)]
+
+        ion_cts = []
+
         for slices in pat_slices:
             #print(sorted(pat_slices[0]), sorted(pat_slices[1]))
             for s in tqdm(slices):
@@ -126,6 +140,14 @@ def generate_sysm(nAngles, save=False):
                 ictArray = interp1d(HU_original, RSP_accurate, kind='linear')(ctArray) #calibrate array
                 iCT = np.reshape(ictArray, np.shape(CTblock), order='F')
                 iCTacc = iCT*mask_image
+
+                ion_cts += [iCTacc]
+
+                plot = False
+                if plot:
+                    plt.imshow(iCTacc.reshape(256,256, order = 'F'))
+                    plt.show()
+
                 print(CTblock.shape)
                 for i, a in enumerate(Angles):
                     sys_m = sys_angles[i]
@@ -160,9 +182,13 @@ def generate_sysm(nAngles, save=False):
 
                     if save:
                         np.save(path+'/proj_slice'+str(s)+'_angle'+str(int(a))+'.npy', proj_angle)
+
+                    if return_proj_angle:
+                        proj_angles += [proj_angle]
+
+
+    return sys_angles, proj_angles, ion_cts
                         
-                  
-generate_sysm(90)
 
 #calibs stay the same
 
@@ -175,26 +201,28 @@ def compute_operator_norn(patient, s, a):
     return torch.norm(sys_coo_tensor), torch.norm(sys_coo_tensor_norm)
 
 
-train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
-test_patients = ['female5']
-patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
-nAngles = 90
-Angles = np.linspace(0,180, nAngles, endpoint = False)
-forward_norms = []
-backward_norms = []
-for patient in patients:
-    print(patient)
-    if patient in test_patients: 
-        test_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_test_slices.npy')
-        pat_slices = [test_slices]
-    else:
-        train_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_train_slices.npy')
-        val_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_val_slices.npy')
-        pat_slices = [train_slices, val_slices]
-    for slices in pat_slices:
-        for s in tqdm(slices):
-            for i, a in enumerate(Angles):
-                norm1, norm2 = compute_operator_norn(patient, s, a)
-                forward_norms += [norm2.numpy()]
-                backward_norms += [norm1.numpy()]
-np.save(r'/project/med2/Ines.Butz/Data/ML/PrimalDual/nAngles'+str(nAngles)+'_opNorms.npy',[np.mean(forward_norms), np.mean(backward_norms)])
+if __name__ == '__main__':
+
+    train_patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5']
+    test_patients = ['female5']
+    patients = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
+    nAngles = 90
+    Angles = np.linspace(0,180, nAngles, endpoint = False)
+    forward_norms = []
+    backward_norms = []
+    for patient in patients:
+        print(patient)
+        if patient in test_patients:
+            test_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_test_slices.npy')
+            pat_slices = [test_slices]
+        else:
+            train_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_train_slices.npy')
+            val_slices = np.load(r'/project/med2/Ines.Butz/Data/ML/DeepBackProj/20231006_'+patient+'_1mm3mm1mm_val_slices.npy')
+            pat_slices = [train_slices, val_slices]
+        for slices in pat_slices:
+            for s in tqdm(slices):
+                for i, a in enumerate(Angles):
+                    norm1, norm2 = compute_operator_norn(patient, s, a)
+                    forward_norms += [norm2.numpy()]
+                    backward_norms += [norm1.numpy()]
+    np.save(r'/project/med2/Ines.Butz/Data/ML/PrimalDual/nAngles'+str(nAngles)+'_opNorms.npy',[np.mean(forward_norms), np.mean(backward_norms)])
