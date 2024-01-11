@@ -251,7 +251,7 @@ def generate_projections(patient, system_matrices_angles, save_path=None, normal
 
             projection_angle_slice = system_matrix.transpose().dot(ion_ct_masked.flatten(order='F'))
 
-            if save:
+            if save_path is not None:
                 torch.save(sys_coo_tensor,
                            save_path + '/sysm_slice' + str(slice) + '_angle' + str(int(angle)) + '.pt')
                 np.save(save_path + '/proj_slice' + str(slice) + '_angle' + str(int(angle)) + '.npy',
