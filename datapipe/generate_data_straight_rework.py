@@ -30,6 +30,7 @@ from scipy.interpolate import interp1d
 import torch
 from scipy.ndimage import rotate
 from tqdm.auto import tqdm
+import matplotlib.pyplot as plt
 
 PATIENTS = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
 
@@ -128,7 +129,6 @@ class PatientCT:
 
     @property
     def ion_ct(self, hu_original=HU_ORIGINAL):
-
         ion_ct = np.empty_like(self.ct)
         for i in range(self.n_slices):
             renormalization = interp1d(hu_original, self.rsp_accurate[i, :], kind='linear')
@@ -245,6 +245,7 @@ def plot_slice(slice):
     plt.figure()
     plt.imshow(slice)
     plt.show()
+
 
 def generate_projections(patient, system_matrices_angles, save_path=None, normalize=False, plot=False, slice_block=1):
     """
