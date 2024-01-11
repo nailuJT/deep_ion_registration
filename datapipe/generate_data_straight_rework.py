@@ -136,7 +136,13 @@ class PatientCT:
 
         return ion_ct
 
-class ProjectionGenerator:
+    def apply_mask(self, image):
+        """
+        Applies the mask to an image.
+        """
+        return image * self.mask
+
+class Projection:
     """
     Class to generate projections.
     """
