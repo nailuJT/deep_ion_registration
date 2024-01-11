@@ -147,14 +147,13 @@ class Projection:
     Class to generate projections.
     """
 
-    def __init__(self, patient, angles, normalize=False):
+    def __init__(self, patient, angles):
         self.patient = patient
         self.angles = angles
-        self.normalize = normalize
+        self.system_matrices = self.calculate_system_matrix()
+        self._projections_angles = None
 
-        self.system_matrices_angles = self.generate_system_matrix()
-
-    def generate_system_matrix(self):
+    def calculate_system_matrix(self):
         """
         Generates a system matrix for a given shape and a given set of angles.
 
@@ -167,15 +166,15 @@ class Projection:
 
         for i, theta in tqdm(enumerate(self.angles)):
 
-            system_matrix = np.zeros(shape=(np.prod(self.patient.shape), self.patient.shape[0]))
+            system_matrix = np.zeros(shape=(np.prod(self.patient.slice_shape), self.patient.slice_shape[0]))
 
-            for row_index in range(self.patient.shape[0]):
+            for row_index in range(self.patient.slice_shape[0]):
 
-                image_zeros = np.zeros(self.patient.shape)
+                image_zeros = np.zeros(self.patient.slice_shape)
                 image_zeros[row_index, :] = 1
                 image_rotated = rotate(image_zeros, theta, reshape=False, order=1)
 
-                image_row = image_rotated.reshape(np.prod(self.patient.shape), order='F')
+                image_row = image_rotated.reshape(np.prod(self.patient.slice_shape), order='F')
                 system_matrix[:, row_index] = image_row
 
             system_matrix = scipy.sparse.csc_matrix(system_matrix)
@@ -183,14 +182,14 @@ class Projection:
 
         return system_matrices_angles
 
-    def generate_projections(self, save_path=None, plot=False, slice_block=1):
+    def generate(self, save_path=None, normalize=True):
         """
         Generates the projections for a given patient and a given set of system matrices.
         """
 
         projection_angles = {}
 
-        for angle, system_matrix in tqdm(self.system_matrices_angles.items()):
+        for angle, system_matrix in tqdm(self.system_matrices.items()):
 
             projection_angle = np.zeros((self.patient.n_slices, self.patient.shape[1]))
 
@@ -200,18 +199,44 @@ class Projection:
             for slice, (ion_ct_block, mask_image) in enumerated_cts:
 
                 ion_ct_masked = ion_ct_block * mask_image
+                system_matrix_masked = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis])
 
-                if self.normalize:
-                    normalization_sum = system_matrix.sum(0)
-                    indexes_zeros = np.where(normalization_sum == 0)[1]
-                    normalization_sum[0, indexes_zeros] = 1
-                    system_matrix = system_matrix.multiply(1. / normalization_sum)
+                if normalize:
+                    system_matrix_masked = self.normalize_system_matrix(system_matrix_masked)
 
-                #system_matrix = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis]).tocoo()
-                system_matrix = system_matrix.tocoo()
-                indices = np.vstack((system_matrix.row, system_matrix.col))
+                system_matrix_masked = system_matrix_masked.tocoo()
+                indices = np.vstack((system_matrix_masked.row, system_matrix_masked.col))
 
-                indices_tensor
+                indices_tensor = torch.LongTensor(indices)
+                system_matrix_masked_tensor = torch.FloatTensor(system_matrix_masked.data)
+
+                sys_coo_tensor = torch.sparse.FloatTensor(indices_tensor, system_matrix_masked_tensor,
+                                                          torch.Size(system_matrix_masked.shape))
+
+                projection_angle_slice = system_matrix_masked.transpose().dot(ion_ct_masked.flatten(order='F'))
+
+                if save_path is not None:
+                    torch.save(sys_coo_tensor,
+                               save_path + '/sysm_slice' + str(slice) + '_angle' + str(int(angle)) + '.pt')
+                    np.save(save_path + '/proj_slice' + str(slice) + '_angle' + str(int(angle)) + '.npy',
+                            projection_angle_slice)
+
+                projection_angle[slice] = projection_angle_slice
+
+            projection_angles[angle] = projection_angle
+
+        return projection_angles
+
+    @staticmethod
+    def normalize_system_matrix(system_matrix):
+        """
+        Normalizes a system matrix.
+        """
+        normalization_sum = system_matrix.sum(0)
+        indexes_zeros = np.where(normalization_sum == 0)[1]
+        normalization_sum[0, indexes_zeros] = 1
+        system_matrix = system_matrix.multiply(1. / normalization_sum)
+        return system_matrix
 
 def plot_slice(slice):
     """
