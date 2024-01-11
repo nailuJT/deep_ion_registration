@@ -93,14 +93,14 @@ class PatientCT:
         return np.array(rsp_accurate_files)
 
     def ct_blocks(self, block_size):
-        num_blocks = self.ct.shape[1] // block_size
+        num_blocks = self.ct.shape[0] // block_size -1
         for i in range(num_blocks):
             start = i * block_size
             end = start + block_size
             yield self.ct[start:end, :, :]
 
     def mask_blocks(self, block_size):
-        num_blocks = self.mask.shape[1] // block_size
+        num_blocks = self.mask.shape[0] // block_size -1
         for i in range(num_blocks):
             start = i * block_size
             end = start + block_size
@@ -108,7 +108,7 @@ class PatientCT:
 
     def ion_ct_blocks(self, block_size):
         ion_ct = self.ion_ct
-        num_blocks = ion_ct.shape[1] // block_size
+        num_blocks = ion_ct.shape[0] // block_size -1
         for i in range(num_blocks):
             start = i * block_size
             end = start + block_size
