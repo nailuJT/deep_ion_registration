@@ -119,6 +119,10 @@ class PatientCT:
         return self.ct.shape
 
     @property
+    def slice_shape(self):
+        return self.ct.shape[1:]
+
+    @property
     def n_slices(self):
         return self.ct.shape[0]
 
