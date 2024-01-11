@@ -155,15 +155,14 @@ def generate_projections(patient, system_matrices_angles, save_path, n_ions=1,
 
             ion_ct_masked = ion_ct_block * mask_image
 
-        for angle, system_matrix in system_matrices_angles.items():
-
             if normalize:
                 normalization_sum = system_matrix.sum(0)
                 indexes_zeros = np.where(normalization_sum == 0)[1]
                 normalization_sum[0, indexes_zeros] = 1
                 system_matrix = system_matrix.multiply(1. / normalization_sum)
 
-            system_matrix = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis]).tocoo()
+            #system_matrix = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis]).tocoo()
+            system_matrix = system_matrix.tocoo()
             indices = np.vstack((system_matrix.row, system_matrix.col))
 
             indices_tensor = torch.LongTensor(indices)
@@ -172,9 +171,7 @@ def generate_projections(patient, system_matrices_angles, save_path, n_ions=1,
             sys_coo_tensor = torch.sparse.FloatTensor(indices_tensor, system_matrix_tensor,
                                                       torch.Size(system_matrix.shape))
 
-            # reshaped into matrix: pixels x ions (entry tracker projection image)
-            projection_angle = system_matrix.transpose().dot(ion_ct_masked.flatten(order='F'))
-            projection_angle = projection_angle.reshape(ion_ct_block.shape[0], n_ions)
+            projection_angle_slice = system_matrix.transpose().dot(ion_ct_masked.flatten(order='F'))
 
             if save:
                 torch.save(sys_coo_tensor,
