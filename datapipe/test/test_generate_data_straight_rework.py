@@ -1,22 +1,32 @@
 
 from datapipe.generate_data_straight import generate_sysm
-from datapipe.generate_data_straight_rework import generate_system_matrix, PatientCT, generate_projections
+from datapipe.generate_data_straight_rework import PatientCT, Projection
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def compare_generate_system_matrix():
-    """
-    Tests the generate_system_matrix function.
-    """
-    n_angles = 10
-    patient = PatientCT('male1')
+def compare_system_matrices():
+    patient_name = 'male1'
+    n_angles = 3
     angles = np.linspace(0, 180, n_angles, endpoint=False)
-    system_matrices_angles = generate_system_matrix(patient.slice_shape, angles)
-    system_matrices_angles_ines = generate_sysm(n_angles, return_sys_angles=True)
+
+    patient = PatientCT(patient_name)
+    projection = Projection(patient, angles)
+    system_matrices_angles = projection.system_matrices
+
+    system_matrices_angles_ines = generate_sysm(n_angles,
+                                         force_patients=[patient_name],return_sys_angles=True)
+
+    plot_index = 129
 
     for i, theta in enumerate(angles):
-        assert np.allclose(system_matrices_angles[theta].todense(), system_matrices_angles_ines[i].todense())
+        #reshape system matrix to match the shape of the projections
+        system_matrix_ines = system_matrices_angles_ines[i][:,plot_index].reshape(patient.slice_shape[0], patient.slice_shape[1])
+        system_matrix = system_matrices_angles[theta][:,plot_index].reshape(patient.slice_shape[0], patient.slice_shape[1])
+
+        plot_comparison(system_matrix.A, system_matrix_ines.A)
+
+
 
 def compare_generate_projections():
     """
@@ -25,8 +35,9 @@ def compare_generate_projections():
     patient = PatientCT('male1')
     n_angles = 10
     angles = np.linspace(0, 180, n_angles, endpoint=False)
-    system_matrices_angles = generate_system_matrix(patient.slice_shape, angles)
-    projections = generate_projections(patient, system_matrices_angles, normalize=True)
+
+    projections = Projection(patient, angles).generate()
+
 
     _ , projections_ines, _ = generate_sysm(n_angles,
                                          force_patients=['male1'],
@@ -50,6 +61,8 @@ def compare_generate_projections():
 
     for i, theta in enumerate(angles):
         assert np.allclose(projections[theta], projection_ines_angles[theta])
+
+
 
 def compare_ion_cts():
     """
@@ -90,35 +103,11 @@ def test_ion_ct():
     patient = PatientCT('male1')
     print(patient.ion_ct.shape)
 
-def test_generate_system_matrix():
-    """
-    Tests the generate_system_matrix function.
-    """
-    patient = PatientCT('male1')
-    angles = np.linspace(0, 180, 10, endpoint=False)
-    system_matrices_angles = generate_system_matrix(patient.slice_shape, angles)
-    print(system_matrices_angles[0].shape)
 
-
-def test_generate_projections():
-    """
-    Tests the generate_projections function.
-    """
-    save_path = '/home/j/J.Titze/Data/system_matrices'
-
-    patient = PatientCT('male1')
-    angles = np.linspace(0, 180, 10, endpoint=False)
-    system_matrices_angles = generate_system_matrix(patient.shape, angles)
-    generate_projections(patient, system_matrices_angles,
-                         save_path=save_path,
-                         n_ions=1,
-                         normalize=True,
-                         save=False,
-                         slice_block=1)
 
 
 if __name__ == '__main__':
-    #compare_generate_system_matrix()
+    #compare_system_matrices()
+    #compare_masked_system_matrices()
     compare_generate_projections()
-    compare_ion_cts()
 
