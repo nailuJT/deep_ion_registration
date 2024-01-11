@@ -29,6 +29,7 @@ import os
 from scipy.interpolate import interp1d
 import torch
 from scipy.ndimage import rotate
+from tqdm.auto import tqdm
 
 PATIENTS = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
 
@@ -137,10 +138,18 @@ def generate_projections(patient, system_matrices_angles, save_path, n_ions=1,
     Generates the projections for a given patient and a given set of system matrices.
     """
 
-    for slice, (ion_ct_block, mask_image) in enumerate(zip(patient.ion_ct_blocks(block_size=slice_block),
-                                                           patient.mask_blocks(block_size=slice_block))):
+    projection_angles = {}
 
-        ion_ct_masked = ion_ct_block * mask_image
+    for angle, system_matrix in tqdm(system_matrices_angles.items()):
+
+        projection_angle = np.zeros((patient.n_slices, patient.shape[1]))
+
+        enumerated_cts = enumerate(zip(patient.ion_ct,
+                                       patient.mask))
+
+        for slice, (ion_ct_block, mask_image) in enumerated_cts:
+
+            ion_ct_masked = ion_ct_block * mask_image
 
         for angle, system_matrix in system_matrices_angles.items():
 
@@ -166,8 +175,14 @@ def generate_projections(patient, system_matrices_angles, save_path, n_ions=1,
             if save:
                 torch.save(sys_coo_tensor,
                            save_path + '/sysm_slice' + str(slice) + '_angle' + str(int(angle)) + '.pt')
-                np.save(save_path + '/proj_slice' + str(slice) + '_angle' + str(int(angle)) + '.npy', projection_angle)
+                np.save(save_path + '/proj_slice' + str(slice) + '_angle' + str(int(angle)) + '.npy',
+                        projection_angle_slice)
 
+            projection_angle[slice] = projection_angle_slice
+
+        projection_angles[angle] = projection_angle
+
+    return projection_angles
 
 def generate_system_matrix(shape, angles):
     """
@@ -180,7 +195,7 @@ def generate_system_matrix(shape, angles):
 
     system_matrices_angles = {}
 
-    for i, theta in enumerate(angles):
+    for i, theta in tqdm(enumerate(angles)):
 
         system_matrix = np.zeros(shape=(np.prod(shape), shape[0]))
 
@@ -197,41 +212,3 @@ def generate_system_matrix(shape, angles):
         system_matrices_angles[theta] = system_matrix
 
     return system_matrices_angles
-
-def test_ion_ct():
-    """
-    Tests the ion_ct property of the PatientCT class.
-    """
-    patient = PatientCT('male1')
-    print(patient.ion_ct.shape)
-
-def test_generate_system_matrix():
-    """
-    Tests the generate_system_matrix function.
-    """
-    patient = PatientCT('male1')
-    angles = np.linspace(0, 180, 10, endpoint=False)
-    system_matrices_angles = generate_system_matrix(patient.shape, angles)
-    print(system_matrices_angles[0].shape)
-
-
-
-def test_generate_projections():
-    """
-    Tests the generate_projections function.
-    """
-    save_path = '/home/j/J.Titze/Data/system_matrices'
-
-    patient = PatientCT('male1')
-    angles = np.linspace(0, 180, 10, endpoint=False)
-    system_matrices_angles = generate_system_matrix(patient.shape, angles)
-    generate_projections(patient, system_matrices_angles,
-                         save_path=save_path,
-                         n_ions=1,
-                         normalize=True,
-                         save=True,
-                         slice_block=1)
-
-
-if __name__ == '__main__':
-    test_generate_system_matrix()
