@@ -136,8 +136,86 @@ class PatientCT:
 
         return ion_ct
 
-def generate_projections(patient, system_matrices_angles, save_path, n_ions=1,
-                       normalize=True, save=True, slice_block=1):
+class ProjectionGenerator:
+    """
+    Class to generate projections.
+    """
+
+    def __init__(self, patient, angles, normalize=False):
+        self.patient = patient
+        self.angles = angles
+        self.normalize = normalize
+
+        self.system_matrices_angles = self.generate_system_matrix()
+
+    def generate_system_matrix(self):
+        """
+        Generates a system matrix for a given shape and a given set of angles.
+
+        :param shape: Shape of the image.
+        :param angles: Angles for which the system matrix should be generated.
+        :return: Dictionary of system matrices for each angle.
+        """
+
+        system_matrices_angles = {}
+
+        for i, theta in tqdm(enumerate(self.angles)):
+
+            system_matrix = np.zeros(shape=(np.prod(self.patient.shape), self.patient.shape[0]))
+
+            for row_index in range(self.patient.shape[0]):
+
+                image_zeros = np.zeros(self.patient.shape)
+                image_zeros[row_index, :] = 1
+                image_rotated = rotate(image_zeros, theta, reshape=False, order=1)
+
+                image_row = image_rotated.reshape(np.prod(self.patient.shape), order='F')
+                system_matrix[:, row_index] = image_row
+
+            system_matrix = scipy.sparse.csc_matrix(system_matrix)
+            system_matrices_angles[theta] = system_matrix
+
+        return system_matrices_angles
+
+    def generate_projections(self, save_path=None, plot=False, slice_block=1):
+        """
+        Generates the projections for a given patient and a given set of system matrices.
+        """
+
+        projection_angles = {}
+
+        for angle, system_matrix in tqdm(self.system_matrices_angles.items()):
+
+            projection_angle = np.zeros((self.patient.n_slices, self.patient.shape[1]))
+
+            enumerated_cts = enumerate(zip(self.patient.ion_ct,
+                                           self.patient.mask))
+
+            for slice, (ion_ct_block, mask_image) in enumerated_cts:
+
+                ion_ct_masked = ion_ct_block * mask_image
+
+                if self.normalize:
+                    normalization_sum = system_matrix.sum(0)
+                    indexes_zeros = np.where(normalization_sum == 0)[1]
+                    normalization_sum[0, indexes_zeros] = 1
+                    system_matrix = system_matrix.multiply(1. / normalization_sum)
+
+                #system_matrix = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis]).tocoo()
+                system_matrix = system_matrix.tocoo()
+                indices = np.vstack((system_matrix.row, system_matrix.col))
+
+                indices_tensor
+
+def plot_slice(slice):
+    """
+    Plots a slice.
+    """
+    plt.figure()
+    plt.imshow(slice)
+    plt.show()
+
+def generate_projections(patient, system_matrices_angles, save_path=None, normalize=False, plot=False, slice_block=1):
     """
     Generates the projections for a given patient and a given set of system matrices.
     """
