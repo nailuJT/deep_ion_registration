@@ -2,40 +2,40 @@ import numpy as np
 import os
 from scipy.ndimage import map_coordinates
 import warnings
-from collections import namedtuple
+from dataclasses import dataclass
+from scipy.spatial.transform import Rotation as R
 
-GaussianParameters = namedtuple('GaussianParameters', ['alpha_dirs', 'mu_dirs', 'sigma_dirs', 'rotation_dirs'])
+
+@dataclass
+class GaussianParameters:
+    alpha_dirs: any
+    mu_dirs: any
+    sigma_dirs: any
+    rotation_dirs: any
 
 def gaussian(x, mu, sigma, alpha, epsilon=1e-8):
     """
     Computes a Gaussian function.
     """
 
-    dist = np.power(x - mu[:, None, None], 2)
-    dist = np.divide(dist, 2 * sigma[:, None, None] ** 2 + epsilon)
+    dist = np.power(x - mu[:, None, None, None], 2)
+    dist = np.divide(dist, 2 * sigma[:, None, None, None] ** 2 + epsilon)
     dist = np.sum(dist, axis=0)
     y = alpha * np.exp(-dist)
 
     return y
 
-def gaussian_derivative(coordinates, image_center, alpha, mu, sigma, dimension, rotation=0):
+def gaussian_derivative(coordinates, alpha, mu, sigma, dimension):
     """
     Computes the derivative of a Gaussian function in dimension 'dimension'.
     """
-
-    mu_normalized = mu + image_center
-
-    if rotation != 0:
-        coordinates = transform_coordinates(coordinates, rotation, mu_normalized)
-
-
-    shift = gaussian(coordinates, mu_normalized, sigma, alpha)
-    shift = shift * (coordinates[dimension] - mu_normalized[dimension]) / sigma[dimension] ** 2
+    shift = gaussian(coordinates, mu, sigma, alpha)
+    shift = shift * (coordinates[dimension] - mu[dimension]) / sigma[dimension] ** 2
 
     return shift
 
 
-def apply_gaussian_transform(image, alpha_dirs, mu_dirs, sigma_dirs, rotation_dirs, **kwargs):
+def apply_gaussian_transform(image, alpha_dirs, mu_dirs, sigma_dirs, rotation_dirs):
     """
     Applies a Gaussian transform to an image.
     """
@@ -51,14 +51,17 @@ def apply_gaussian_transform(image, alpha_dirs, mu_dirs, sigma_dirs, rotation_di
 
     for dimension, (alpha, mu, sigma, rotation)in enumerate(zip(alpha_dirs, mu_dirs, sigma_dirs, rotation_dirs)):
 
-        vector_field += [gaussian_derivative(coordinates=coordinates,
-                                        image_center=image_center,
+        mu_normalized = mu + image_center
+
+        coordinates_rotated = rotate_coordinates_3d(coordinates, rotation, mu_normalized)
+
+        coordinates_rotated = coordinates
+
+        vector_field += [gaussian_derivative(coordinates=coordinates_rotated,
                                         alpha=alpha,
-                                        mu=mu,
+                                        mu=mu_normalized,
                                         sigma=sigma,
-                                        dimension=dimension,
-                                        rotation=rotation,
-                                        **kwargs)]
+                                        dimension=dimension)]
 
     vector_field = np.stack(vector_field, axis=0)
     coordinates_transformed = vector_field + coordinates
@@ -83,6 +86,25 @@ def transform_coordinates(coordinates, rotation_angle, mu_normalized):
 
     return coordinates_transformed
 
+def rotate_coordinates_3d(coordinates, rotation_angles, mu):
+    """
+    Rotate 3D coordinates around mu by rotation_angles
+    """
+    # Convert rotation angles to radians
+    rotation_angles_rad = np.radians(rotation_angles)
+
+    # Create a rotation object
+    rotation = R.from_euler('xyz', rotation_angles_rad)
+    rotation_matrix = rotation.as_matrix()
+
+    coordinates_shifted = coordinates - mu[:, None, None, None]
+    coordinates_rotated = np.tensordot(rotation_matrix, coordinates_shifted, axes=((1), (0)))
+    coordinates_transformed = coordinates_rotated + mu[:, None, None, None]
+
+    return coordinates_transformed
+
+
+
 
 if __name__ == '__main__':
     gaussian_parameters = {
@@ -93,7 +115,7 @@ if __name__ == '__main__':
                        np.array([50, 100])],
         "rotation_dirs": [0, 0],
     }
-    test_apply_gaussian_transform(gaussian_parameters=gaussian_parameters)
+    #test_apply_gaussian_transform(gaussian_parameters=gaussian_parameters)
     #compare_gaussian_transforms()
     #test_sample_gaussian_transform()
 
