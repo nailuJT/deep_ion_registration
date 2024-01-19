@@ -95,7 +95,7 @@ class DatasetPrimalDual(torch.utils.data.Dataset):
         iCT = np.reshape(ictArray, np.shape(CTblock), order = 'F')
         iCTinacc = iCT*mask_image
         
-        if self.norm: #pairwise normalisation: divide by maximum RSP value in [iCTacc, iCTinacc] --> caution: divide backprojections by same value!  
+        if self.norm: #pairwise normalisation: divide by maximum RSP val ue in [iCTacc, iCTinacc] --> caution: divide backprojections by same value!
             norm_val = np.max([iCTacc, iCTinacc])
         else: 
             norm_val = 1
