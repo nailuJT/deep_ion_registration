@@ -1,6 +1,6 @@
 import numpy as np
-from data_transform import GaussianParameters
-from data_transform import gaussian_shift
+from datapipe.data_transform import GaussianParameters
+from datapipe.data_transform import apply_gaussian_transform3d
 
 class GaussianParameterSampler:
     def __init__(self, alpha_mean,
@@ -28,7 +28,6 @@ class GaussianParameterSampler:
         mu_directions = np.random.normal(self.mu_mean, self.mu_std, (self.dimension, self.dimension))
         sigma_directions = np.random.normal(self.sigma_mean, self.sigma_std, (self.dimension, self.dimension))
         rotation_directions = np.random.normal(self.rotation_mean, self.rotation_std, self.dimension)
-
         return GaussianParameters(alpha_directions, mu_directions, sigma_directions, rotation_directions)
 
     def __iter__(self):
@@ -47,6 +46,27 @@ class GaussianParameterSampler:
                    config['sigma_std'],
                    config['rotation_mean'],
                    config['rotation_std'])
+
+
+def transform_projection(projection, gaussian_parameters, normalize=True):
+    """
+    Samples a Gaussian transform and applies it to a projection.
+    """
+    ct_original = projection.patient.ct
+    mask_original = projection.patient.mask
+    voxel_size = projection.voxel_size
+
+    if normalize:
+        #TODO: implement normalization based on voxel size and image size
+        pass
+
+    ct_transformed, vector_field = apply_gaussian_transform3d(ct_original, **gaussian_parameters.__dict__)
+    mask_transformed, _ = apply_gaussian_transform3d(mask_original, **gaussian_parameters.__dict__)
+    projection.patient.ct = ct_transformed
+    projection.patient.mask = mask_transformed
+
+    return projection, vector_field
+
 
 
 def test_sampler():
