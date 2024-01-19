@@ -24,6 +24,29 @@ def read_binary(path, shape_x, shape_y, slices):
 
     return image_array
 
+# def compare_images(original_image, warped_image, plot=True, ax=None):
+#     """
+#     Compares two images by plotting the difference between them.
+#
+#     :param original_image:
+#     :param warped_image:
+#     :param plot:
+#     :param ax:
+#     :return:
+#     """
+#     diff_image = np.abs(original_image - warped_image)
+#
+#     if plot:
+#         if ax is None:
+#             fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+#
+#         ax[0].imshow(original_image)
+#         ax[1].imshow(warped_image)
+#         ax[2].imshow(diff_image)
+#         plt.show()
+#
+#     return diff_image
+
 def compare_images(original_image, warped_image, plot=True, ax=None):
     """
     Compares two images by plotting the difference between them.
@@ -34,15 +57,28 @@ def compare_images(original_image, warped_image, plot=True, ax=None):
     :param ax:
     :return:
     """
+    from matplotlib.colors import LinearSegmentedColormap
+
     diff_image = np.abs(original_image - warped_image)
 
     if plot:
         if ax is None:
-            fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+            fig, ax = plt.subplots(3, 1, figsize=(6, 15))
 
         ax[0].imshow(original_image)
         ax[1].imshow(warped_image)
-        ax[2].imshow(diff_image)
+
+        # Plot the warped image in grayscale
+        ax[2].imshow(original_image, cmap='gray')
+
+        # Create a colormap that goes from transparent to red
+        colors = [(0, 0, 0, 0),(0, 0, 1, 0.7),(0, 1, 0, 1), (1, 0, 0, 1)]  # R -> G -> B -> A
+        cmap_name = 'my_list'
+        cm = LinearSegmentedColormap.from_list(cmap_name, colors, N=100)
+
+        # Plot the difference image with the new colormap
+        ax[2].imshow(diff_image, cmap=cm)
+
         plt.show()
 
     return diff_image
