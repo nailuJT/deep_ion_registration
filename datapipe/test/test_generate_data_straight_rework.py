@@ -1,5 +1,5 @@
 
-from datapipe.generate_data_straight import generate_sysm
+from datapipe.archive.generate_data_straight import generate_sysm
 from datapipe.generate_data_straight_rework import PatientCT, Projection
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,7 +15,8 @@ def compare_system_matrices():
     system_matrices_angles = projection.system_matrices
 
     system_matrices_angles_ines = generate_sysm(n_angles,
-                                         force_patients=[patient_name],return_sys_angles=True)
+                                                force_patients=[patient_name],
+                                                return_sys_angles=True)
 
     plot_index = 129
 
@@ -38,7 +39,6 @@ def compare_generate_projections():
 
     projections = Projection(patient, angles).generate()
 
-
     _ , projections_ines, _ = generate_sysm(n_angles,
                                          force_patients=['male1'],
                                          return_proj_angle=True,
@@ -53,7 +53,6 @@ def compare_generate_projections():
             projection_ines_angele_slice = projections_ines[n_angles*k + i].flatten()
             projections_ines_angle[k] = projection_ines_angele_slice
 
-
         projection_ines_angles[theta] = projections_ines_angle
 
     for i, theta in enumerate(angles):
@@ -61,7 +60,6 @@ def compare_generate_projections():
 
     for i, theta in enumerate(angles):
         assert np.allclose(projections[theta], projection_ines_angles[theta])
-
 
 
 def compare_ion_cts():
@@ -77,7 +75,6 @@ def compare_ion_cts():
         assert np.allclose(ion_cts[i], ion_cts_ines[i])
 
 
-
 def plot_projections(projection):
     """
     Plots the projections.
@@ -85,6 +82,7 @@ def plot_projections(projection):
     plt.figure()
     plt.imshow(projection)
     plt.show()
+
 
 def plot_comparison(projection, projection_ines):
     """
@@ -102,8 +100,6 @@ def test_ion_ct():
     """
     patient = PatientCT('male1')
     print(patient.ion_ct.shape)
-
-
 
 
 if __name__ == '__main__':
