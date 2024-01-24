@@ -1,109 +1,72 @@
+from datapipe.data_transform import apply_gaussian_transform3d, GaussianParameters
+from datapipe.deformation_sampling import GaussianParameterSampler, transform_projection
+from datapipe.generate_data_straight_rework import PatientCT, Projection
 import numpy as np
-import os
-from scipy.ndimage import map_coordinates
-import warnings
-from collections import namedtuple
-from datapipe.data_transform import apply_gaussian_transform
+import matplotlib.pyplot as plt
+import cProfile
 
-def visualize_vector_field(vector_field):
-    import matplotlib.pyplot as plt
+def load_projection():
+    patient_name = "male1"
+    patient = PatientCT(patient_name)
+    angles = np.linspace(0, 180, 1, endpoint=False)
+    projection = Projection(patient, angles)
+    return projection
 
-    plt.quiver(vector_field[1, :, :], vector_field[0, :, :])
+def test_projection_transform():
+
+    projection = load_projection()
+    gaussian_parameters = GaussianParameters(alpha_dirs=np.array([1000, 1000, 1000]),
+                                                mu_dirs=np.array([[100, 0, 0],
+                                                                [100, 0, 0],
+                                                                [100, 0, 0]]),
+                                                sigma_dirs=np.array([[40, 40, 40],
+                                                                    [40, 40, 40],
+                                                                    [40, 40, 40]]),
+                                                rotation_dirs=np.array([[0, 0, 0],
+                                                                        [0, 0, 0],
+                                                                        [0, 0, 0]]))
+
+
+    projection_transformed, vector_field = transform_projection(projection, gaussian_parameters)
+
+    plt.imshow(projection_transformed.patient.ct[20,:,:])
     plt.show()
 
-def load_test_image():
-    from phantom_helpers.binary_tools import read_binary, compare_images
-    try:
-        BASE_PATH = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/"
-        postfix = "_atn_1.bin"
 
-        path_original = "high"
+    angles = projection_transformed.generate()
 
-        image_dimenstions = (512, 512, 40)
-        slice = 20
+    plt.imshow(angles[0][20,:,:])
+    plt.show()
 
-        image_original = read_binary(os.path.join(BASE_PATH, path_original + postfix), *image_dimenstions)[slice, :, :]
+def profile_projection_transform():
 
-    except FileNotFoundError:
-        warnings.warn("Could not find test image.\n "
-                      "Please download the XCAT phantom and set the correct path.")
-        image_original = np.ones((20, 20))
+    projection = load_projection()
+    gaussian_parameters = GaussianParameters(alpha_dirs=np.array([0, np.pi/2, np.pi]),
+                                                mu_dirs=np.array([[0, 0, 0],
+                                                               [0, 0, 0],
+                                                                [0, 0, 0]]),
+                                                sigma_dirs=np.array([[1, 1, 1],
+                                                                    [1, 1, 1],
+                                                                    [1, 1, 1]]),
+                                                rotation_dirs=np.array([[0, 0, 0],
+                                                                        [0, 0, 0],
+                                                                        [0, 0, 0]]))
 
-    return image_original
+    # Start profiling
+    profiler = cProfile.Profile()
+    profiler.enable()
 
+    # Call the method you want to profile
+    projection_transformed, vector_field = transform_projection(projection, gaussian_parameters)
 
-def load_dummy_image():
-    image_original = np.ones((20, 20))
-    return image_original
+    # Stop profiling
+    profiler.disable()
 
-#make gaussian parameters a named tuple
+    # Print the profiling results
+    profiler.print_stats()
 
-
-def test_apply_gaussian_transform(gaussian_parameters=None):
-    """
-    Tests the apply_gaussian_transform function with plots.
-    """
-    from phantom_helpers.binary_tools import compare_images
-
-    if gaussian_parameters is None:
-        gaussian_parameters = {
-            "alpha_dirs": [0.5, 0.5],
-            "mu_dirs": np.array([[3, 3],
-                                 [3, 3]]),
-            "sigma_dirs": [np.array([5, 5]),
-                           np.array([5, 5])],
-            "rotation_dirs": [0, 0],
-        }
-
-    image_original = load_test_image()
-
-    image_warped, vector_field = apply_gaussian_transform(image_original, **gaussian_parameters)
-
-    visualize_vector_field(vector_field)
-
-    compare_images(image_original, image_warped)
-
-def compare_gaussian_transforms():
-    from phantom_helpers.binary_tools import compare_images
-
-    gaussian_parameters = {
-        "alpha_dirs": [1, 0],
-        "mu_dirs": np.array([[0, 0],
-                             [0, 0]]),
-        "sigma_dirs": [np.array([4, 4]),
-                       np.array([4, 4])],
-        "rotation_dirs": [0, 0],
-    }
-
-    image_original = load_dummy_image()
-
-    image_warped, vector_field = apply_gaussian_transform(image_original, **gaussian_parameters)
-
-    image_lensing, vector_lensing = apply_gaussian_lensing(image_original, **gaussian_parameters, lensing=True)
-
-    image_shifted, vector_shifted = apply_gaussian_lensing(image_original, **gaussian_parameters, lensing=False)
-
-    visualize_vector_field(vector_field)
-
-    visualize_vector_field(vector_lensing)
-    visualize_vector_field(vector_shifted)
-
-    #compare_images(image_original, image_warped)
-
-def test_sample_gaussian_transform():
-    from phantom_helpers.binary_tools import compare_images
-
-    sample_parameters = {
-    }
-
-    gaussian_parameters = sample_gaussian_parameters(**sample_parameters)
-    print(gaussian_parameters)
-
-    image_original = load_test_image()
-    image_warped = apply_gaussian_transform(image_original, **gaussian_parameters)
-    compare_images(image_original, image_warped)
+    plt.imshow(projection_transformed.patient.ct[20,:,:])
+    plt.show()
 
 if __name__ == '__main__':
-    test_apply_gaussian_transform()
-    #compare_gaussian_transforms()
-    #test_sample_gaussian_transform()
+    test_projection_transform()
