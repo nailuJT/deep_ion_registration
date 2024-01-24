@@ -17,10 +17,15 @@ def gaussian3d(x, mu, sigma, epsilon=1e-8):
     """
     Computes a Gaussian function.
     """
+    #
+    # dist = np.power(x - mu[:, None, None, None], 2)
+    # dist = np.divide(dist, 2 * sigma[:, None, None, None] ** 2 + epsilon)
+    # dist = np.sum(dist, axis=0)
+    #
+    dist = np.sum(((x - mu[..., None, None, None]) ** 2) /
+                  (2 * sigma[..., None, None, None] ** 2 + epsilon),
+                  axis=0)
 
-    dist = np.power(x - mu[:, None, None, None], 2)
-    dist = np.divide(dist, 2 * sigma[:, None, None, None] ** 2 + epsilon)
-    dist = np.sum(dist, axis=0)
     y = np.exp(-dist)
 
     return y
@@ -60,8 +65,6 @@ def apply_gaussian_transform3d(image, alpha_dirs, mu_dirs, sigma_dirs, rotation_
 
         coordinates_rotated = rotate_coordinates_3d(coordinates, rotation, mu_normalized)
 
-        coordinates_rotated = coordinates
-
         vector_field += [gaussian_derivative_3d(coordinates=coordinates_rotated,
                                                 alpha=alpha,
                                                 mu=mu_normalized,
@@ -87,7 +90,7 @@ def rotate_coordinates_3d(coordinates, rotation_angles, mu):
     rotation_angles_rad = np.radians(rotation_angles)
 
     # Create a rotation object
-    rotation = R.from_euler('xyz', rotation_angles_rad)
+    rotation = R.from_euler('zxy', rotation_angles_rad)
     rotation_matrix = rotation.as_matrix()
 
     coordinates_shifted = coordinates - mu[:, None, None, None]
