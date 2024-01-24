@@ -1,4 +1,3 @@
-from medpy.io import load as medpyload
 import numpy as np
 import struct
 import matplotlib.pyplot as plt
