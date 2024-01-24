@@ -147,11 +147,12 @@ class Projection:
     Class to generate projections.
     """
 
-    def __init__(self, patient, angles):
+    def __init__(self, patient, angles, voxel_size=(1.0, 1.0, 1.0)):
         self.patient = patient
         self.angles = angles
         self.system_matrices = self.calculate_system_matrix()
         self._projections_angles = None
+        self.voxel_size = voxel_size
 
     def calculate_system_matrix(self):
         """
