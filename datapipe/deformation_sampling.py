@@ -13,23 +13,42 @@ class GaussianParameterSampler:
                  rotation_std,
                  dimension=3):
 
-        self.alpha_mean = alpha_mean
-        self.alpha_std = alpha_std
-        self.mu_mean = mu_mean
-        self.mu_std = mu_std
-        self.sigma_mean = sigma_mean
-        self.sigma_std = sigma_std
-        self.rotation_mean = rotation_mean
-        self.rotation_std = rotation_std
-        self.dimension = dimension
+        self.alpha_mean = np.array(alpha_mean)
+        self.alpha_std = np.array(alpha_std)
+        self.mu_mean = np.array(mu_mean)
+        self.mu_std = np.array(mu_std)
+        self.sigma_mean = np.array(sigma_mean)
+        self.sigma_std = np.array(sigma_std)
+        self.rotation_mean = np.array(rotation_mean)
+        self.rotation_std = np.array(rotation_std)
+        self.dimension = np.array(dimension)
+
+        self.correlation_deformation = 0.1
+        correlation_matrix_deformation = np.full((self.dimension, self.dimension), self.correlation_deformation)
+        np.fill_diagonal(correlation_matrix_deformation, )
+        self.correlation_matrix_deformation_full = np.kron(np.eye(self.dimension), correlation_matrix_deformation)
+
+        self.correlation_directions = 0.8
+        correlation_matrix_directions = np.eye(self.dimension) * self.correlation_directions
+
+        self.correlation_matrix_directions_full = np.kron(np.ones(self.dimension) - np.eye(self.dimension), correlation_matrix_directions)
 
     def sample(self):
-        alpha_directions = np.random.normal(self.alpha_mean, self.alpha_std, self.dimension)
-        mu_directions = np.random.normal(self.mu_mean, self.mu_std, (self.dimension, self.dimension))
-        sigma_directions = np.random.normal(self.sigma_mean, self.sigma_std, (self.dimension, self.dimension))
-        rotation_directions = np.random.normal(self.rotation_mean, self.rotation_std, self.dimension)
-        return GaussianParameters(alpha_directions, mu_directions, sigma_directions, rotation_directions)
+        alpha_directions = np.random.normal(self.alpha_mean.flatten(), self.alpha_std, self.dimension)
 
+        correlation_coefficient = 0.8
+        covariance_matrix = np.full((self.dimension, self.dimension), correlation_coefficient)
+        np.fill_diagonal(covariance_matrix, 1)
+
+        mu_directions = np.random.multivariate_normal(self.mu_mean, covariance_matrix,
+                                                      (self.dimension, self.dimension))
+        sigma_directions = np.random.multivariate_normal(self.sigma_mean, covariance_matrix,
+                                                         (self.dimension, self.dimension))
+        rotation_directions = np.random.multivariate_normal(self.rotation_mean, covariance_matrix,
+                                                            self.dimension)
+
+        return {"alpha_dirs": alpha_directions, "mu_dirs": mu_directions, "sigma_dirs": sigma_directions,
+                "rotation_dirs": rotation_directions}
     def __iter__(self):
         return self
 

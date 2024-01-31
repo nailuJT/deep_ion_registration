@@ -68,5 +68,11 @@ def profile_projection_transform():
     plt.imshow(projection_transformed.patient.ct[20,:,:])
     plt.show()
 
+def test_gaussian_sampling():
+    sampler =
+    print(sampler.sample())
+
+
+
 if __name__ == '__main__':
     test_projection_transform()
