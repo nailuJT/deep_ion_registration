@@ -24,28 +24,33 @@ class GaussianParameterSampler:
         self.dimension = np.array(dimension)
 
         self.correlation_deformation = 0.1
-        correlation_matrix_deformation = np.full((self.dimension, self.dimension), self.correlation_deformation)
-        np.fill_diagonal(correlation_matrix_deformation, )
-        self.correlation_matrix_deformation_full = np.kron(np.eye(self.dimension), correlation_matrix_deformation)
-
         self.correlation_directions = 0.8
-        correlation_matrix_directions = np.eye(self.dimension) * self.correlation_directions
 
-        self.correlation_matrix_directions_full = np.kron(np.ones(self.dimension) - np.eye(self.dimension), correlation_matrix_directions)
+    def covariance_matrix(self, standard_deviations=1.0):
+
+        if not np.isscalar(standard_deviations):
+            standard_deviations = np.array(standard_deviations).flatten()
+
+        correlation_matrix_deformation = np.full((self.dimension, self.dimension), self.correlation_deformation)
+        np.fill_diagonal(correlation_matrix_deformation, 1)
+        correlation_matrix_deformation_full = np.kron(np.eye(self.dimension), correlation_matrix_deformation)
+        correlation_matrix_directions = np.eye(self.dimension) * self.correlation_directions
+        correlation_matrix_directions_full = np.kron(np.ones(self.dimension) - np.eye(self.dimension), correlation_matrix_directions)
+        covariance_matrix = correlation_matrix_deformation_full + correlation_matrix_directions_full
+
+        normalization = np.outer(standard_deviations, standard_deviations)
+        covariance_matrix = covariance_matrix * normalization
+
+        return covariance_matrix
 
     def sample(self):
         alpha_directions = np.random.normal(self.alpha_mean.flatten(), self.alpha_std, self.dimension)
 
-        correlation_coefficient = 0.8
-        covariance_matrix = np.full((self.dimension, self.dimension), correlation_coefficient)
-        np.fill_diagonal(covariance_matrix, 1)
-
-        mu_directions = np.random.multivariate_normal(self.mu_mean, covariance_matrix,
-                                                      (self.dimension, self.dimension))
-        sigma_directions = np.random.multivariate_normal(self.sigma_mean, covariance_matrix,
-                                                         (self.dimension, self.dimension))
-        rotation_directions = np.random.multivariate_normal(self.rotation_mean, covariance_matrix,
-                                                            self.dimension)
+        mu_directions = np.random.multivariate_normal(self.mu_mean.flatten(), self.covariance_matrix(self.mu_std))
+        mu_directions = np.reshape(mu_directions, (self.dimension, self.dimension))
+        sigma_directions = np.random.multivariate_normal(self.sigma_mean.flatten(), self.covariance_matrix(self.sigma_std))
+        sigma_directions = np.reshape(sigma_directions, (self.dimension, self.dimension))
+        rotation_directions = np.random.normal(self.rotation_mean.flatten(), self.rotation_std, self.dimension)
 
         return {"alpha_dirs": alpha_directions, "mu_dirs": mu_directions, "sigma_dirs": sigma_directions,
                 "rotation_dirs": rotation_directions}
@@ -65,6 +70,17 @@ class GaussianParameterSampler:
                    config['sigma_std'],
                    config['rotation_mean'],
                    config['rotation_std'])
+
+    @classmethod
+    def from_dict(cls, config_dict):
+        return cls(config_dict['alpha_mean'],
+                   config_dict['alpha_std'],
+                   config_dict['mu_mean'],
+                   config_dict['mu_std'],
+                   config_dict['sigma_mean'],
+                   config_dict['sigma_std'],
+                   config_dict['rotation_mean'],
+                   config_dict['rotation_std'])
 
 
 def transform_projection(projection, gaussian_parameters, normalize=True):
@@ -89,7 +105,18 @@ def transform_projection(projection, gaussian_parameters, normalize=True):
 
 
 def test_sampler():
-    sampler = GaussianParameterSampler(0.5, 0.5, 0, 1, 0, 1, 0, 1, 2)
+    config_dict = {
+    "alpha_mean": [300, 1500, 1500],
+    "alpha_std": [400, 2000, 2000],
+    "mu_mean": [[10.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
+    "mu_std": [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+    "sigma_mean": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+    "sigma_std": [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+    "rotation_mean": [0.0, 0.0, 0.0],
+    "rotation_std": [1.0, 1.0, 1.0]
+    }
+
+    sampler = GaussianParameterSampler.from_dict(config_dict)
     print(sampler.sample())
 
 
