@@ -115,6 +115,15 @@ class PatientCT:
             end = start + block_size
             yield ion_ct[ start:end, :, :]
 
+    def save_ion_ct(self, path):
+        np.save(path, self.ion_ct)
+
+    def save_mask(self, path):
+        np.save(path, self.mask)
+
+    def save_ct(self, path):
+        np.save(path, self.ct)
+
     @property
     def shape(self):
         return self.ct.shape
@@ -142,16 +151,15 @@ class PatientCT:
         """
         return image * self.mask
 
-class Projection:
+class Projector:
     """
     Class to generate projections.
     """
 
-    def __init__(self, patient, angles, voxel_size=(1.0, 1.0, 1.0)):
-        self.patient = patient
+    def __init__(self, slice_shape, angles, voxel_size=(1.0, 1.0, 1.0)):
         self.angles = angles
+        self.slice_shape = slice_shape
         self.system_matrices = self.calculate_system_matrix()
-        self._projections_angles = None
         self.voxel_size = voxel_size
 
     def calculate_system_matrix(self):
@@ -167,15 +175,15 @@ class Projection:
 
         for i, theta in tqdm(enumerate(self.angles)):
 
-            system_matrix = np.zeros(shape=(np.prod(self.patient.slice_shape), self.patient.slice_shape[0]))
+            system_matrix = np.zeros(shape=(np.prod(self.slice_shape), self.slice_shape[0]))
 
-            for row_index in range(self.patient.slice_shape[0]):
+            for row_index in range(self.slice_shape[0]):
 
-                image_zeros = np.zeros(self.patient.slice_shape)
+                image_zeros = np.zeros(self.slice_shape)
                 image_zeros[row_index, :] = 1
                 image_rotated = rotate(image_zeros, theta, reshape=False, order=1)
 
-                image_row = image_rotated.reshape(np.prod(self.patient.slice_shape), order='F')
+                image_row = image_rotated.reshape(np.prod(self.slice_shape), order='F')
                 system_matrix[:, row_index] = image_row
 
             system_matrix = scipy.sparse.csc_matrix(system_matrix)
@@ -183,7 +191,7 @@ class Projection:
 
         return system_matrices_angles
 
-    def generate(self, save_path=None, normalize=True):
+    def generate(self, patient, save_path=None, normalize=True):
         """
         Generates the projections for a given patient and a given set of system matrices.
         """
@@ -192,10 +200,10 @@ class Projection:
 
         for angle, system_matrix in tqdm(self.system_matrices.items()):
 
-            projection_angle = np.zeros((self.patient.n_slices, self.patient.shape[1]))
+            projection_angle = np.zeros((patient.n_slices, patient.shape[1]))
 
-            enumerated_cts = enumerate(zip(self.patient.ion_ct,
-                                           self.patient.mask))
+            enumerated_cts = enumerate(zip(patient.ion_ct,
+                                           patient.mask))
 
             for slice, (ion_ct_block, mask_image) in enumerated_cts:
 
@@ -247,3 +255,38 @@ def plot_slice(slice):
     plt.imshow(slice)
     plt.show()
 
+
+def generate(system_matrices, ct_array, mask_array):
+    """
+    Generates the projections for a given patient and a given set of system matrices.
+    """
+
+    projection_angles = {}
+
+    n_slices = ct_array.shape[0]
+
+    for angle, system_matrix in system_matrices.items():
+
+        projection_angle = np.zeros((n_slices, ct_array.shape[1]))
+
+        enumerated_cts = enumerate(zip(ct_array,
+                                       mask_array))
+
+        for slice, (ion_ct_block, mask_image) in enumerated_cts:
+
+            ion_ct_masked = ion_ct_block * mask_image
+            system_matrix_masked = system_matrix.multiply(mask_image.flatten('F')[:, np.newaxis])
+
+            system_matrix_masked = system_matrix_masked.tocoo()
+            indices = np.vstack((system_matrix_masked.row, system_matrix_masked.col))
+
+            indices_tensor = torch.LongTensor(indices)
+            system_matrix_masked_tensor = torch.FloatTensor(system_matrix_masked.data)
+
+            projection_angle_slice = system_matrix_masked.transpose().dot(ion_ct_masked.flatten(order='F'))
+
+            projection_angle[slice] = projection_angle_slice
+
+        projection_angles[angle] = projection_angle
+
+    return projection_angles
