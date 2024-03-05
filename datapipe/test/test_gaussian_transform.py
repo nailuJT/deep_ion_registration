@@ -22,10 +22,15 @@ def visualize_vector_field_big(vector_field, num_samples=30):
 
 
     fig, ax = plt.subplots(3, 1, figsize=(6, 15))
-    ax[0].imshow(vector_field[0, :, :])
-    ax[1].imshow(vector_field[1, :, :])
+    # plot with titles and labels
+    ax[0].imshow(vector_field[0, :, :], origin='lower')
+    ax[0].set_title('Vector Field - X Component')
+
+    ax[1].imshow(vector_field[1, :, :], origin='lower')
+    ax[1].set_title('Vector Field - Y Component')
+
     ax[2].quiver(subsampled_vector_field[1, :, :], subsampled_vector_field[0, :, :])
-    fig.show()
+    ax[2].set_title('Subsampled Vector Field')
 
 def visualize_vector_field_3d(vector_field):
     import matplotlib.pyplot as plt
@@ -229,24 +234,24 @@ if __name__ == '__main__':
 
     _, _, vector_field2d = test_apply_gaussian_transform2d(gaussian_parameters=gaussian_parameters2d,)
 
-    for alpha in range(-1000, 0, 100):
-
-        gaussian_parameters = {
-            "alpha_dirs": [alpha, alpha, 0],
-            "mu_dirs": np.array([[100, 3, 0],
-                                 [100, 3, 0],
-                                 [0, 0, 0]]),
-            "sigma_dirs": [np.array([50, 50, 100]),
-                           np.array([50, 50, 100]),
-                           np.array([50, 50, 100])],
-            "rotation_dirs": [[0, 0, 0],
-                              [0, 0, 0],
-                              [0, 0, 0]],
-        }
-
-        _, _, vector_field = test_apply_gaussian_transform3d(gaussian_parameters=gaussian_parameters, dummy=False)
-
-        print(vector_field.max())
+    # for alpha in range(-1000, 0, 100):
+    #
+    #     gaussian_parameters = {
+    #         "alpha_dirs": [alpha, alpha, 0],
+    #         "mu_dirs": np.array([[100, 3, 0],
+    #                              [100, 3, 0],
+    #                              [0, 0, 0]]),
+    #         "sigma_dirs": [np.array([50, 50, 100]),
+    #                        np.array([50, 50, 100]),
+    #                        np.array([50, 50, 100])],
+    #         "rotation_dirs": [[0, 0, 0],
+    #                           [0, 0, 0],
+    #                           [0, 0, 0]],
+    #     }
+    #
+    #     _, _, vector_field = test_apply_gaussian_transform3d(gaussian_parameters=gaussian_parameters, dummy=False)
+    #
+    #     print(vector_field.max())
 
 
 
