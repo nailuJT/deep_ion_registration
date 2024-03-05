@@ -69,7 +69,16 @@ def profile_projection_transform():
     plt.show()
 
 def test_gaussian_sampling():
-    sampler =
+    sampler = GaussianParameterSampler.from_config({
+        "alpha_mean": [300, 1500, 1500],
+        "alpha_std": [400, 2000, 2000],
+        "mu_mean": [[10.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
+        "mu_std": [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+        "sigma_mean": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+        "sigma_std": [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+        "rotation_mean": [0.0, 0.0, 0.0],
+        "rotation_std": [1.0, 1.0, 1.0]
+    })
     print(sampler.sample())
 
 
