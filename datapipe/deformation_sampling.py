@@ -43,17 +43,33 @@ class GaussianParameterSampler:
 
         return covariance_matrix
 
-    def sample(self):
+    def sample(self, inversion="all", inversion_chance=0.5):
+
+        if inversion == "none":
+            inversion_vector = np.zeros(self.dimension)
+        elif inversion == "all":
+            inversion_vector = (np.ones(self.dimension) *
+                                np.random.choice([-1, 1], p=[1 - inversion_chance, inversion_chance]))
+        elif inversion == "indep":
+            inversion_vector = np.random.choice([-1, 1],
+                                                size=self.dimension,
+                                                p=[1 - inversion_chance, inversion_chance])
+        else:
+            raise ValueError("Invalid inversion setting. Choose from 'none', 'all', 'indep'.")
+
         alpha_directions = np.random.normal(self.alpha_mean.flatten(), self.alpha_std, self.dimension)
+        alpha_directions = alpha_directions * inversion_vector
 
         mu_directions = np.random.multivariate_normal(self.mu_mean.flatten(), self.covariance_matrix(self.mu_std))
         mu_directions = np.reshape(mu_directions, (self.dimension, self.dimension))
         sigma_directions = np.random.multivariate_normal(self.sigma_mean.flatten(), self.covariance_matrix(self.sigma_std))
         sigma_directions = np.reshape(sigma_directions, (self.dimension, self.dimension))
-        rotation_directions = np.random.normal(self.rotation_mean.flatten(), self.rotation_std, self.dimension)
+        rotation_directions = np.random.normal(self.rotation_mean.flatten(), self.rotation_std, (self.dimension, self.dimension))
+
 
         return {"alpha_dirs": alpha_directions, "mu_dirs": mu_directions, "sigma_dirs": sigma_directions,
                 "rotation_dirs": rotation_directions}
+
     def __iter__(self):
         return self
 
@@ -83,13 +99,12 @@ class GaussianParameterSampler:
                    config_dict['rotation_std'])
 
 
-def transform_projection(projection, gaussian_parameters, normalize=True):
+def transform_ct(patient, gaussian_parameters, normalize=True):
     """
     Samples a Gaussian transform and applies it to a projection.
     """
-    ct_original = projection.patient.ct
-    mask_original = projection.patient.mask
-    voxel_size = projection.voxel_size
+    ct_original = patient.ct
+    mask_original = patient.mask
 
     if normalize:
         #TODO: implement normalization based on voxel size and image size
@@ -97,10 +112,10 @@ def transform_projection(projection, gaussian_parameters, normalize=True):
 
     ct_transformed, vector_field = apply_gaussian_transform3d(ct_original, **gaussian_parameters.__dict__)
     mask_transformed, _ = apply_gaussian_transform3d(mask_original, **gaussian_parameters.__dict__)
-    projection.patient.ct = ct_transformed
-    projection.patient.mask = mask_transformed
+    patient.ct = ct_transformed
+    patient.mask = mask_transformed
 
-    return projection, vector_field
+    return patient, vector_field
 
 
 
