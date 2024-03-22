@@ -1,69 +1,12 @@
 import numpy as np
 import os
-from scipy.ndimage import map_coordinates
 import warnings
-from collections import namedtuple
 from datapipe.data_transform import apply_gaussian_transform3d, apply_gaussian_transform2d
+from datapipe.helpers.plotting import visualize_vector_field_big
 
 
-def visualize_vector_field(vector_field):
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.quiver(vector_field[1, :, :], vector_field[0, :, :])
-    plt.show()
-
-def visualize_vector_field_big(vector_field, num_samples=30):
-    import matplotlib.pyplot as plt
-    # Compute the step size for each dimension
-    step_size = np.maximum(np.array(vector_field.shape[1:]) // num_samples, 1)
-
-    # Subsample the vector field
-    subsampled_vector_field = vector_field[:, ::step_size[0], ::step_size[1]]/step_size[0]
-
-
-    fig, ax = plt.subplots(3, 1, figsize=(6, 15))
-    # plot with titles and labels
-    ax[0].imshow(vector_field[0, :, :], origin='lower')
-    ax[0].set_title('Vector Field - X Component')
-
-    ax[1].imshow(vector_field[1, :, :], origin='lower')
-    ax[1].set_title('Vector Field - Y Component')
-
-    ax[2].quiver(subsampled_vector_field[1, :, :], subsampled_vector_field[0, :, :])
-    ax[2].set_title('Subsampled Vector Field')
-
-def visualize_vector_field_3d(vector_field):
-    import matplotlib.pyplot as plt
-    fig = plt.figure( figsize=(10, 10))
-    ax = fig.add_subplot(111, projection='3d')
-
-
-    vector_field = vector_field.transpose(0, 2, 3, 1)
-
-    x, y, z = np.meshgrid(np.arange(vector_field.shape[1]),
-                          np.arange(vector_field.shape[2]),
-                          np.arange(vector_field.shape[3]))
-
-    ax.quiver(x, y, z, vector_field[0, :, :, :], vector_field[1, :, :, :], vector_field[2, :, :, :])
-
-def visualize_vector_field_with_timeout(vector_field, timeout):
-    import multiprocessing
-
-    p = multiprocessing.Process(target=visualize_vector_field, args=(vector_field,))
-    p.start()
-    p.join(timeout)
-
-    if p.is_alive():
-        print("The function 'visualize_vector_field' took too long to complete. It has been terminated.")
-        p.terminate()
-        p.join()
-
-    else:
-        visualize_vector_field_big(vector_field)
-
-    plt.show()
 def load_test_image():
-    from phantom_helpers.binary_tools import read_binary, compare_images
+    from phantom_helpers.binary_tools import read_binary
     try:
         BASE_PATH = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/"
         postfix = "_atn_1.bin"
@@ -83,7 +26,7 @@ def load_test_image():
     return image_original
 
 def load_test_image_3d():
-    from phantom_helpers.binary_tools import read_binary, compare_images
+    from phantom_helpers.binary_tools import read_binary
     try:
         BASE_PATH = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/"
         postfix = "_atn_1.bin"

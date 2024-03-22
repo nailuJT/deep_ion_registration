@@ -1,8 +1,9 @@
 
 from datapipe.archive.generate_data_straight import generate_sysm
-from datapipe.generate_data_straight_rework import PatientCT, Projection
+from datapipe.straight_projection import PatientCT, Projection
 import numpy as np
-import matplotlib.pyplot as plt
+
+from datapipe.helpers.plotting import plot_comparison
 
 
 def compare_system_matrices():
@@ -73,25 +74,6 @@ def compare_ion_cts():
     for i in range(patient.n_slices):
         plot_comparison(ion_cts[i], ion_cts_ines[i])
         assert np.allclose(ion_cts[i], ion_cts_ines[i])
-
-
-def plot_projections(projection):
-    """
-    Plots the projections.
-    """
-    plt.figure()
-    plt.imshow(projection)
-    plt.show()
-
-
-def plot_comparison(projection, projection_ines):
-    """
-    Plots the projections.
-    """
-    fig, axs = plt.subplots(1, 2, figsize=(10, 4))
-    axs[0].imshow(projection)
-    axs[1].imshow(projection_ines)
-    plt.show()
 
 
 def test_ion_ct():

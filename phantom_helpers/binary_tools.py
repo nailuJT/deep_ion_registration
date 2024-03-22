@@ -3,6 +3,9 @@ import struct
 import matplotlib.pyplot as plt
 import os
 
+from datapipe.helpers.plotting import compare_images
+
+
 def read_binary(path, shape_x, shape_y, slices):
     """
     Reads a binary file and returns a numpy array with shape (slices, shape_x, shape_y).
@@ -46,42 +49,6 @@ def read_binary(path, shape_x, shape_y, slices):
 #
 #     return diff_image
 
-def compare_images(original_image, warped_image, plot=True, ax=None):
-    """
-    Compares two images by plotting the difference between them.
-
-    :param original_image:
-    :param warped_image:
-    :param plot:
-    :param ax:
-    :return:
-    """
-    from matplotlib.colors import LinearSegmentedColormap
-
-    diff_image = np.abs(original_image - warped_image)
-
-    if plot:
-        if ax is None:
-            fig, ax = plt.subplots(3, 1, figsize=(6, 15))
-
-        ax[0].imshow(original_image)
-        ax[1].imshow(warped_image)
-
-        # Plot the warped image in grayscale
-        ax[2].imshow(original_image, cmap='gray')
-
-        # Create a colormap that goes from transparent to red
-        colors = [(0, 0, 0, 0),(0, 0, 1, 0.7),(0, 1, 0, 1), (1, 0, 0, 1)]  # R -> G -> B -> A
-        cmap_name = 'my_list'
-        cm = LinearSegmentedColormap.from_list(cmap_name, colors, N=100)
-
-        # Plot the difference image with the new colormap
-        ax[2].imshow(diff_image, cmap=cm)
-
-        plt.show()
-
-    return diff_image
-
 def test_compare_images():
     path = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/test3_atn_1.bin"
     data = read_binary(path, 256, 256, 150)
@@ -105,7 +72,7 @@ def main():
     image_original = read_binary(path_original, 256, 256, 150)
     image_warped = read_binary(path_warped, 256, 256, 150)
 
-    compare_images(image_original[80,:,:], image_warped[80,:,:])
+    compare_images(image_original[80, :, :], image_warped[80, :, :])
 
 if __name__ == '__main__':
     main()
