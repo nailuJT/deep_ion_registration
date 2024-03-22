@@ -1,6 +1,7 @@
 import numpy as np
 from datapipe.data_transform import GaussianParameters
 from datapipe.data_transform import apply_gaussian_transform3d
+import copy
 
 class GaussianParameterSampler:
     def __init__(self, alpha_mean,
@@ -103,6 +104,7 @@ def transform_ct(patient, gaussian_parameters, normalize=True):
     """
     Samples a Gaussian transform and applies it to a projection.
     """
+    patient = copy.deepcopy(patient)
     ct_original = patient.ct
     mask_original = patient.mask
 
@@ -110,8 +112,8 @@ def transform_ct(patient, gaussian_parameters, normalize=True):
         #TODO: implement normalization based on voxel size and image size
         pass
 
-    ct_transformed, vector_field = apply_gaussian_transform3d(ct_original, **gaussian_parameters.__dict__)
-    mask_transformed, _ = apply_gaussian_transform3d(mask_original, **gaussian_parameters.__dict__)
+    ct_transformed, vector_field = apply_gaussian_transform3d(ct_original, **gaussian_parameters)
+    mask_transformed, _ = apply_gaussian_transform3d(mask_original, **gaussian_parameters)
     patient.ct = ct_transformed
     patient.mask = mask_transformed
 
@@ -121,14 +123,14 @@ def transform_ct(patient, gaussian_parameters, normalize=True):
 
 def test_sampler():
     config_dict = {
-    "alpha_mean": [300, 1500, 1500],
-    "alpha_std": [400, 2000, 2000],
-    "mu_mean": [[10.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
-    "mu_std": [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
-    "sigma_mean": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-    "sigma_std": [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
-    "rotation_mean": [0.0, 0.0, 0.0],
-    "rotation_std": [1.0, 1.0, 1.0]
+        "alpha_mean": [300, 1500, 1500],
+        "alpha_std": [400, 2000, 2000],
+        "mu_mean": [[0.0, 0.0, 12.0], [10.0, 0.0, 12.0], [0.0, 0.0, 12.0]],
+        "mu_std": [[40.0, 40.0, 5.0], [40.0, 40.0, 5.0], [40.0, 40.0, 5.0]],
+        "sigma_mean": [[25, 25, 12], [25, 25, 12], [25, 25, 12]],
+        "sigma_std": [[5.0, 5.0, 5.0], [5.0, 5.0, 5.0], [5.0, 5.0, 5.0]],
+        "rotation_mean": [0.0, 0.0, 0.0],
+        "rotation_std": [40.0, 40.0, 40.0]
     }
 
     sampler = GaussianParameterSampler.from_dict(config_dict)
