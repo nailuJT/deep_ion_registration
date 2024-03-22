@@ -30,7 +30,6 @@ from scipy.interpolate import interp1d
 import torch
 from scipy.ndimage import rotate
 from tqdm.auto import tqdm
-import matplotlib.pyplot as plt
 
 PATIENTS = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4','female4', 'male5', 'female5']
 
@@ -59,7 +58,7 @@ class PatientCT:
         self.magnetic_deviation = magnetic_deviation
         self.n_slice_block = n_slice_block
 
-        self.patient_name = patient_name
+        self.name = patient_name
         self.ct = self._load_ct().transpose(1, 0, 2)
         self.mask = self._load_mask().transpose(1, 0, 2)
         self.slices = self._load_slices(mode=self.mode)
@@ -67,17 +66,17 @@ class PatientCT:
                                                     error=self.error,)
 
     def _load_ct(self):
-        ct_filename = f'20231011_analytical_{self.patient_name}_1mm3mm1mm.npy'
+        ct_filename = f'20231011_analytical_{self.name}_1mm3mm1mm.npy'
         ct_path = os.path.join(self.REFERENCE_CTS_PATH, ct_filename)
         return np.load(ct_path)
 
     def _load_mask(self):
-        mask_filename = f'20231011_analytical_{self.patient_name}_1mm3mm1mm_mask.npy'
+        mask_filename = f'20231011_analytical_{self.name}_1mm3mm1mm_mask.npy'
         mask_path = os.path.join(self.REFERENCE_CTS_PATH, mask_filename)
         return np.load(mask_path)
 
     def _load_slices(self, mode="train", offset=1):
-        slice_filename = f'20231006_{self.patient_name}_1mm3mm1mm_{mode}_slices.npy'
+        slice_filename = f'20231006_{self.name}_1mm3mm1mm_{mode}_slices.npy'
         slices_path = os.path.join(self.DEEP_BACK_PROJ_PATH, slice_filename)
         return np.load(slices_path) - offset
 
@@ -86,7 +85,7 @@ class PatientCT:
         rsp_accurate_files = []
 
         for slice in range(self.n_slices):
-            rsp_relative_path = f"pretraining_{self.patient_name}_calibs_acc_{magn_deviation}{error}/" \
+            rsp_relative_path = f"pretraining_{self.name}_calibs_acc_{magn_deviation}{error}/" \
                                 f"RSP_accurate_slice{slice+1}.npy"
             rsp_accurate_path = os.path.join(self.RSP_ACCURATE_PATH, rsp_relative_path)
             rsp_accurate_files.append(np.load(rsp_accurate_path))
@@ -246,15 +245,6 @@ class Projector:
         normalization_sum[0, indexes_zeros] = 1
         system_matrix = system_matrix.multiply(1. / normalization_sum)
         return system_matrix
-
-def plot_slice(slice):
-    """
-    Plots a slice.
-    """
-    plt.figure()
-    plt.imshow(slice)
-    plt.show()
-
 
 def generate(system_matrices, ct_array, mask_array):
     """
