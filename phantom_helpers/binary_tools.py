@@ -3,7 +3,7 @@ import struct
 import matplotlib.pyplot as plt
 import os
 
-from datapipe.helpers.plotting import compare_images
+from augmentation.helpers.plotting import compare_images
 
 
 def read_binary(path, shape_x, shape_y, slices):

@@ -1,6 +1,6 @@
 import numpy as np
-from datapipe.data_transform import GaussianParameters
-from datapipe.data_transform import apply_gaussian_transform3d
+from augmentation.data_transform import GaussianParameters
+from augmentation.data_transform import apply_gaussian_transform3d
 import copy
 
 class GaussianParameterSampler:

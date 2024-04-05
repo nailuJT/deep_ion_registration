@@ -1,8 +1,8 @@
 import numpy as np
 import os
 import warnings
-from datapipe.data_transform import apply_gaussian_transform3d, apply_gaussian_transform2d
-from datapipe.helpers.plotting import visualize_vector_field_big
+from augmentation.data_transform import apply_gaussian_transform3d, apply_gaussian_transform2d
+from augmentation.helpers.plotting import visualize_vector_field_big
 
 
 def load_test_image():
@@ -139,7 +139,7 @@ def test_apply_gaussian_transform2d(gaussian_parameters=None, dummy=False):
     return image_original, image_warped, vector_field
 
 def test_sample_gaussian_transform():
-    from phantom_helpers.binary_tools import compare_images
+    from augmentation.helpers.plotting import compare_images
 
     sample_parameters = {
     }

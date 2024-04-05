@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from warnings import warn
-from datapipe.deformation_sampling import GaussianParameterSampler, transform_ct
-from datapipe.straight_projection import PatientCT, Projector
+from augmentation.deformation_sampling import GaussianParameterSampler, transform_ct
+from augmentation.straight_projection import PatientCT, Projector
 from tqdm import tqdm
 
 SLICES = 76
@@ -64,6 +64,7 @@ def sample_data():
 
             # Get the chunk data
             ionct_chunk = patient.ion_ct[start:end, :, :]
+            patient_ct = patient.ct[start:end, :, :]
             transformed_ionct_chunk = transformed_patient.ion_ct[start:end, :, :]
             mask_chunk = patient.mask[start:end, :, :]
             projection_angles_chunk = projection_angles[:, start:end, :]
@@ -71,6 +72,7 @@ def sample_data():
 
             # Save the chunk data to a numpy file
             np.save(os.path.join(DATA_DIR, f"ionct_chunk_{patient.name}_{i}.npy"), ionct_chunk)
+            np.save(os.path.join(DATA_DIR, f"ct_chunk_{patient.name}_{i}.npy"), patient_ct)
             np.save(os.path.join(DATA_DIR, f"transformed_ionct_chunk_{patient.name}_{i}.npy"), transformed_ionct_chunk)
             np.save(os.path.join(DATA_DIR, f"mask_chunk_{patient.name}_{i}.npy"), mask_chunk)
             np.save(os.path.join(DATA_DIR, f"angles_chunk_{patient.name}_{i}.npy"), projection_angles_chunk)
