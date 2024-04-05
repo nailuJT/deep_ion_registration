@@ -235,6 +235,14 @@ class Projector:
 
         return projection_angles
 
+    def save_system_matrices(self, path):
+        """
+        Saves the system matrices to a given path.
+        """
+        for angle, system_matrix in self.system_matrices.items():
+            scipy.sparse.save_npz(path + '/sysm_angle' + str(int(angle)) + '.npz', system_matrix)
+
+
     @staticmethod
     def normalize_system_matrix(system_matrix):
         """
