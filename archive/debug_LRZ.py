@@ -8,10 +8,10 @@ Created on Tue Sep 12 12:30:31 2023
 
 import numpy as np
 import torch
-from DatasetLPD_LRZ import DatasetPrimalDual, datalist
-from LPD_LRZ_revert import primal_dual_ion
+from datapipe.DatasetLPD_LRZ import DatasetPrimalDual, datalist
+from networks.LPD_LRZ_revert import primal_dual_ion
 #from LPD_OpCorr import primal_dual_ion_modelcorrected
-from custom_losses import mask_loss2D
+from networks.custom_losses import mask_loss2D
 import time
 import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"

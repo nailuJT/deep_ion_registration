@@ -36,7 +36,8 @@ class DualNet(nn.Module):
             nn.Conv2d(32, 32, kernel_size=3, padding=1),
             nn.PReLU(),
             nn.Conv2d(32, n_ions, kernel_size=3, padding=1),
-        ]
+            ]
+
         self.block = nn.Sequential(*layers)
         
     def forward(self, h, Op_f, g):
