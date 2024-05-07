@@ -1,4 +1,4 @@
-name: lpd
+name: training_lpd
 channels:
   - defaults
   - conda-forge
@@ -13,5 +13,3 @@ dependencies:
   - tqdm
   - scikit-image
   - pip
-  - pip:
-    - medpy
