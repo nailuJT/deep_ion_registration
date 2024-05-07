@@ -1,15 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jan  6 11:13:00 2023
-
-@author: ines.butz
-"""
-import torch 
+import torch
 
 def mask_loss2D(output, groundtruth, mask):
-    
-    
     loss = torch.mean((output[mask]-groundtruth[mask])**2)
     return loss
 
