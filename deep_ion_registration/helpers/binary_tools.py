@@ -2,8 +2,7 @@ import numpy as np
 import struct
 import matplotlib.pyplot as plt
 import os
-
-from augmentation.helpers.plotting import compare_images
+from deep_ion_registration.helpers.plotting import compare_images
 
 
 def read_binary(path, shape_x, shape_y, slices):
@@ -26,28 +25,6 @@ def read_binary(path, shape_x, shape_y, slices):
 
     return image_array
 
-# def compare_images(original_image, warped_image, plot=True, ax=None):
-#     """
-#     Compares two images by plotting the difference between them.
-#
-#     :param original_image:
-#     :param warped_image:
-#     :param plot:
-#     :param ax:
-#     :return:
-#     """
-#     diff_image = np.abs(original_image - warped_image)
-#
-#     if plot:
-#         if ax is None:
-#             fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-#
-#         ax[0].imshow(original_image)
-#         ax[1].imshow(warped_image)
-#         ax[2].imshow(diff_image)
-#         plt.show()
-#
-#     return diff_image
 
 def test_compare_images():
     path = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/test3_atn_1.bin"
