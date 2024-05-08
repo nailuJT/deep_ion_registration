@@ -1,18 +1,10 @@
-import os
-import sys
-
-# Set working directory and update sys.path
-os.chdir("/home/j/J.Titze/Projects/deep_ion_registration")
-sys.path.append(os.getcwd())
-
 import torch
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import KFold, LeaveOneOut
 from tqdm import tqdm
-from ..helpers.plotting import plot_comparison
+from deep_ion_registration.helpers.plotting import plot_comparison
 import numpy as np
 from matplotlib import pyplot as plt
-
 
 def train_model(model,
                 dataset_class,
@@ -79,9 +71,9 @@ def train_model(model,
     return model
 
 def main():
-    from ..networks.primal_dual_straight import PrimalDualStraight
-    from ..dataset import IonDataset, load_system_matrices
-    from ..dataset import PATIENTS
+    from deep_ion_registration.networks.primal_dual_straight import PrimalDualStraight
+    from deep_ion_registration.dataset import IonDataset, load_system_matrices
+    from deep_ion_registration.dataset import PATIENTS
     from pathlib import Path
 
 
