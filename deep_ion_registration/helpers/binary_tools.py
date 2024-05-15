@@ -26,13 +26,6 @@ def read_binary(path, shape_x, shape_y, slices):
     return image_array
 
 
-def test_compare_images():
-    path = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/test3_atn_1.bin"
-    data = read_binary(path, 256, 256, 150)
-    data = data[20,:,:]
-    compare_images(data, data)
-
-
 def test_read_binary():
     path = "/home/j/J.Titze/Projects/XCAT_data/Phantoms/test3_atn_1.bin"
     data = read_binary(path, 256, 256, 150)
