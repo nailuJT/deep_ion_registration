@@ -90,10 +90,9 @@ class PrimalDualStraight(nn.Module):
 
         self.dummy_tensor = torch.ones(1, dtype=torch.float32, requires_grad=True)
 
-        self.system_matrix = system_matrix
         self.system_matrix_normalized = system_matrix_normalized
 
-    def forward(self, refernce_ct, projection, dual_initial_guess,  device='cpu', logger=None):
+    def forward(self, refernce_ct, projection, dual_initial_guess, logger=None):
         """
         :param refernce_ct: treatment planning CT
         :param projection: ion projection
