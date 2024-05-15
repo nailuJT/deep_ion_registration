@@ -122,7 +122,7 @@ class PrimalDualStraight(nn.Module):
             dual_back_projected = torch.sum(dual_back_projected, dim=1)
             dual_back_projected = dual_back_projected.view(shape_dual_projected)
 
-            primal = self.primal_forward(k, primal, dual_back_projected, refernce_ct)
+            primal = self.primal_forward(k, primal, dual_back_projected)
             if logger:
                 logger.log_primal(primal)
 
@@ -133,6 +133,9 @@ class PrimalDualStraight(nn.Module):
 
     def dual_forward(self, k, *args):
         return self.dual_nets[k](*args)
+
+    def save(self, path):
+        torch.save(self.state_dict(), path)
 
 
 class LoggerPrimalDual:
