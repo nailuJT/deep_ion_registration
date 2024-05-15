@@ -31,7 +31,7 @@ class PrimalNet(nn.Module):
         super(PrimalNet, self).__init__()
 
         self.n_primal = n_slices
-        self.n_channels = 3 * n_slices
+        self.n_channels = 2 * n_slices
 
         layers = [
             nn.Conv2d(self.n_channels, 32, kernel_size=5, padding='same'),
@@ -42,8 +42,8 @@ class PrimalNet(nn.Module):
         ]
         self.block = nn.Sequential(*layers)
 
-    def forward(self, primal, dual_projected, reference_ct):
-        x = torch.cat((primal, dual_projected, reference_ct), dim=1)
+    def forward(self, primal, dual_projected):
+        x = torch.cat((primal, dual_projected), dim=1)
         x = primal + self.block(x)
         return x
 
@@ -53,7 +53,6 @@ class PrimalDualStraight(nn.Module):
     Primal Dual network for straight projection implementation.
     """
     def __init__(self,
-                 system_matrix,
                  system_matrix_normalized,
                  n_slices,
                  n_angles,
