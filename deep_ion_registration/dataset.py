@@ -2,11 +2,12 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 import os
+from deep_ion_registration.helpers.plotting import compare_images
 
 PATIENTS = ['male1', 'female1', 'male2','female2','male3', 'female3', 'male4', 'female4', 'male5', 'female5']
 
 class IonDataset(Dataset):
-    def __init__(self, data_dir, human_names=None):
+    def __init__(self, data_dir, human_names=None, debug=False):
         self.data_dir = data_dir
         self.human_names = human_names
 
@@ -16,6 +17,7 @@ class IonDataset(Dataset):
         self.mask_files = self.prepare_data('mask_chunk')
         self.projection_angle_files = self.prepare_data('angles_chunk')
         self.transformed_ionct_files = self.prepare_data('transformed_ionct_chunk')
+        self.debug = debug
 
     def __len__(self):
         return len(self.ionct_files)
@@ -44,6 +46,9 @@ class IonDataset(Dataset):
         transformed_ionct = torch.from_numpy(transformed_ionct).float()
 
         inputs = (xray_ct, projection_angle, dual_initial_guess)
+
+        if self.debug:
+            compare_images(xray_ct[0], transformed_ionct[0])
 
         return inputs, transformed_ionct
 
