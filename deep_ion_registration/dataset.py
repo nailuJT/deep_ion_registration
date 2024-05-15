@@ -11,7 +11,7 @@ class IonDataset(Dataset):
         self.human_names = human_names
 
         self.ionct_files = self.prepare_data('ionct_chunk')
-        self.xray_ct = self.prepare_data('ionct_chunk')
+        self.xray_ct = self.prepare_data('ct_chunk')
         self.vector_field_files = self.prepare_data('vector_field_chunk')
         self.mask_files = self.prepare_data('mask_chunk')
         self.projection_angle_files = self.prepare_data('angles_chunk')
