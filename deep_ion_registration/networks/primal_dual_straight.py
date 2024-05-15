@@ -103,7 +103,7 @@ class PrimalDualStraight(nn.Module):
         :param logger: logger object
         :return: ion_ct
         """
-
+        device = refernce_ct.device
         dual = dual_initial_guess
         system_tensors_norm = self.system_matrix_normalized.to_dense().to(device)
         primal = refernce_ct
